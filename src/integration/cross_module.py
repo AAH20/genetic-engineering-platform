@@ -72,7 +72,7 @@ class GeneticEngineeringWorkflow:
 
         return WorkflowResult(
             grna_sequence=design["sequence"],
-            risk_level="LOW" if screen_result["is_clean"] else "HIGH",
+            risk_level="Low" if screen_result["is_clean"] else "High",
             passed_screening=screen_result["is_clean"],
             metadata={
                 "efficiency": design.get("efficiency"),

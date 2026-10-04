@@ -50,8 +50,15 @@ class SequenceScreener:
     def __init__(self) -> None:
         self.threat_patterns = THREAT_PATTERNS
 
+    def _reverse_complement(self, seq: str) -> str:
+        """Return the reverse complement of a DNA sequence."""
+        comp = {"A": "T", "T": "A", "C": "G", "G": "C"}
+        return "".join(comp.get(c, c) for c in reversed(seq.upper()))
+
     def screen_sequence(self, sequence: str) -> dict[str, Any]:
         """Check sequence against known threat patterns.
+
+        Searches both forward and reverse-complement strands.
 
         Returns dict with:
             is_clean: bool - True if no threat patterns found
@@ -61,10 +68,11 @@ class SequenceScreener:
             return {"is_clean": True, "matches": []}
 
         seq_upper = sequence.upper()
+        rc = self._reverse_complement(seq_upper)
         matches: list[str] = []
 
         for name, pattern in self.threat_patterns.items():
-            if pattern in seq_upper:
+            if pattern in seq_upper or pattern in rc:
                 matches.append(name)
 
         return {
@@ -84,12 +92,13 @@ class SequenceScreener:
             return 0.0
 
         seq_upper = sequence.upper()
+        rc = self._reverse_complement(seq_upper)
         score = 0.0
 
         # Threat pattern contribution (up to 0.6)
         threat_count = 0
         for pattern in self.threat_patterns.values():
-            if pattern in seq_upper:
+            if pattern in seq_upper or pattern in rc:
                 threat_count += 1
         score += min(threat_count * 0.2, 0.6)
 

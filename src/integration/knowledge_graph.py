@@ -17,6 +17,8 @@ class KnowledgeGraph:
     def __init__(self) -> None:
         self.entities: dict[str, dict[str, Any]] = {}
         self.relations: list[tuple[str, str, str, float]] = []
+        self._type_index: dict[str, set[str]] = {}
+        self._adj_index: dict[str, set[str]] = {}
 
     def add_entity(
         self, entity_id: str, entity_type: str, properties: dict[str, Any] | None = None
@@ -28,6 +30,8 @@ class KnowledgeGraph:
             "type": entity_type,
             "properties": properties or {},
         }
+        self._type_index.setdefault(entity_type, set()).add(entity_id)
+        self._adj_index.setdefault(entity_id, set())
 
     def add_relation(
         self, source: str, relation: str, target: str, weight: float = 1.0
@@ -38,6 +42,8 @@ class KnowledgeGraph:
         if target not in self.entities:
             raise ValueError(f"Target entity '{target}' does not exist")
         self.relations.append((source, relation, target, weight))
+        self._adj_index.setdefault(source, set()).add(target)
+        self._adj_index.setdefault(target, set()).add(source)
 
     def query(
         self,
@@ -46,9 +52,12 @@ class KnowledgeGraph:
     ) -> dict[str, dict[str, Any]]:
         """Query entities by type and/or properties."""
         results: dict[str, dict[str, Any]] = {}
-        for entity_id, entity_data in self.entities.items():
-            if type is not None and entity_data["type"] != type:
-                continue
+        if type is not None:
+            candidates = self._type_index.get(type, set())
+        else:
+            candidates = set(self.entities.keys())
+        for entity_id in candidates:
+            entity_data = self.entities[entity_id]
             if properties is not None:
                 match = all(
                     entity_data["properties"].get(k) == v
@@ -63,13 +72,7 @@ class KnowledgeGraph:
         """Get all entities directly connected to the given entity."""
         if entity_id not in self.entities:
             raise ValueError(f"Entity '{entity_id}' does not exist")
-        neighbors: set[str] = set()
-        for source, _rel, target, _weight in self.relations:
-            if source == entity_id:
-                neighbors.add(target)
-            if target == entity_id:
-                neighbors.add(source)
-        return neighbors
+        return set(self._adj_index.get(entity_id, set()))
 
 
 # =============================================================================
@@ -138,9 +141,10 @@ class Ontology:
 class EventBus:
     """Simple event bus for publish/subscribe pattern."""
 
-    def __init__(self) -> None:
+    def __init__(self, max_events: int = 10000) -> None:
         self._events: list[dict[str, Any]] = []
         self._subscribers: dict[str, list[Callable[[dict[str, Any]], None]]] = {}
+        self._max_events = max_events
 
     def publish(self, event_type: str, data: dict[str, Any] | None = None) -> None:
         """Publish an event to all subscribers."""
@@ -149,6 +153,8 @@ class EventBus:
             "data": data or {},
         }
         self._events.append(event)
+        if len(self._events) > self._max_events:
+            self._events = self._events[-self._max_events:]
         for callback in self._subscribers.get(event_type, []):
             callback(copy.deepcopy(event))
 

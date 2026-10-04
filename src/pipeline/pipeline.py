@@ -26,7 +26,10 @@ class PipelineStep:
 
     def execute(self, value: Any, context: dict[str, Any] | None = None) -> Any:
         """Execute the step, passing context if the function accepts it."""
-        if context is not None:
+        import inspect
+        sig = inspect.signature(self.func)
+        params = list(sig.parameters.keys())
+        if len(params) >= 2:
             return self.func(value, context)
         return self.func(value)
 

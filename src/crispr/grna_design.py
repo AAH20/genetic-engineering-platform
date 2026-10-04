@@ -204,6 +204,7 @@ def design_grna(
         "efficiency": round(best_score, 4),
         "off_targets": [],
         "pam": pam_upper,
+        "max_off_targets": max_off_targets,
     }
 
 

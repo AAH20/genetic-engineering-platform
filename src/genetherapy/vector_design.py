@@ -183,9 +183,9 @@ TISSUE_DELIVERY_ROUTES = {
     "liver": "IV",
     "muscle": "IM",
     "brain": "IT",
-    "lung": "intrathecal",
+    "lung": "inhalation",
     "heart": "IV",
-    "eye": "subcutaneous",
+    "eye": "intravitreal",
     "spinal_cord": "IT",
 }
 

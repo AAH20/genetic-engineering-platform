@@ -6,6 +6,7 @@ context propagation, and intermediate result tracing.
 
 from __future__ import annotations
 
+import inspect
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -54,6 +55,35 @@ class PipelineStep:
                 else:
                     raise
         return None  # unreachable
+
+
+@dataclass
+class AsyncPipelineStep:
+    """An async processing step in a pipeline.
+
+    Wraps an async (or sync) function and executes it asynchronously.
+
+    Attributes:
+        name: Human-readable step identifier.
+        func: Async callable that transforms the input (and optionally context).
+        metadata: Arbitrary key-value metadata for the step.
+    """
+
+    name: str
+    func: Callable[..., Any]
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    async def execute(self, value: Any, context: dict[str, Any] | None = None) -> Any:
+        """Execute the async step, passing context if the function accepts it."""
+        sig = inspect.signature(self.func)
+        params = list(sig.parameters.keys())
+        if len(params) >= 2:
+            result = self.func(value, context)
+        else:
+            result = self.func(value)
+        if inspect.isawaitable(result):
+            result = await result
+        return result
 
 
 @dataclass
@@ -121,6 +151,7 @@ class PipelineResult:
         intermediate: List of intermediate values after each step.
         error: Error message if pipeline failed, None otherwise.
         retries_used: Dict mapping step name to number of retries used.
+        errors: List of all errors collected (used by run_continue_on_error).
     """
 
     output: Any = None
@@ -128,6 +159,7 @@ class PipelineResult:
     intermediate: list[Any] = field(default_factory=list)
     error: Optional[str] = None
     retries_used: dict[str, int] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
 
 
 class Pipeline:
@@ -183,7 +215,11 @@ class Pipeline:
     def from_dict(cls, data: dict[str, Any]) -> Pipeline:
         p = cls(name=data["name"], description=data.get("description", ""))
         for step_data in data.get("steps", []):
-            p.add_step(PipelineStep(name=step_data["name"], func=lambda x: x, metadata=step_data.get("metadata", {})))
+            p.add_step(PipelineStep(
+                name=step_data["name"],
+                func=lambda x: x,
+                metadata=step_data.get("metadata", {}),
+            ))
         return p
 
     def to_json(self) -> str:
@@ -224,6 +260,76 @@ class Pipeline:
             steps_run=steps_run,
             intermediate=intermediate,
             retries_used=retries_used,
+        )
+
+    async def run_async(
+        self, initial_value: Any, context: dict[str, Any] | None = None
+    ) -> PipelineResult:
+        """Execute all steps in order, awaiting async steps.
+
+        Stops on first error and returns the error in PipelineResult.
+        """
+        value = initial_value
+        intermediate: list[Any] = []
+        steps_run = 0
+        retries_used: dict[str, int] = {}
+
+        for step in self.steps:
+            try:
+                if isinstance(step, AsyncPipelineStep):
+                    value = await step.execute(value, context)
+                else:
+                    value = step.execute(value, context)
+                intermediate.append(value)
+                steps_run += 1
+                retries_used[step.name] = getattr(step, "retries_used", 0)
+            except Exception as exc:
+                retries_used[step.name] = getattr(step, "retries_used", 0)
+                return PipelineResult(
+                    output=None,
+                    steps_run=steps_run,
+                    intermediate=intermediate,
+                    error=f"{step.name}: {exc}",
+                    retries_used=retries_used,
+                )
+
+        return PipelineResult(
+            output=value,
+            steps_run=steps_run,
+            intermediate=intermediate,
+            retries_used=retries_used,
+        )
+
+    def run_continue_on_error(
+        self, initial_value: Any, context: dict[str, Any] | None = None
+    ) -> PipelineResult:
+        """Execute all steps, collecting errors but continuing on failure.
+
+        Returns PipelineResult with all errors in the 'errors' list.
+        """
+        value = initial_value
+        intermediate: list[Any] = []
+        steps_run = 0
+        retries_used: dict[str, int] = {}
+        errors: list[str] = []
+
+        for step in self.steps:
+            try:
+                value = step.execute(value, context)
+                intermediate.append(value)
+                steps_run += 1
+                retries_used[step.name] = getattr(step, "retries_used", 0)
+            except Exception as exc:
+                retries_used[step.name] = getattr(step, "retries_used", 0)
+                errors.append(f"{step.name}: {exc}")
+
+        return PipelineResult(
+            output=value if steps_run > 0 else None,
+            steps_run=steps_run,
+            intermediate=intermediate,
+            error=errors[0] if errors else None,
+            retries_used=retries_used,
+            errors=errors,
         )
 
 

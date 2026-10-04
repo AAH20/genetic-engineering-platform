@@ -365,3 +365,361 @@ def design_rbs(target_protein_seq: str, host: str = "E.coli") -> str:
     utr = upstream + motif + spacer
 
     return utr
+
+
+# ---------------------------------------------------------------------------
+# MoClo Assembly Overhang Design
+# ---------------------------------------------------------------------------
+
+def _reverse_complement(seq: str) -> str:
+    """Return the reverse complement of a DNA sequence."""
+    return seq[::-1].translate(str.maketrans("ATGC", "TACG"))
+
+
+def _gc_content(seq: str) -> float:
+    """Calculate GC content of a DNA sequence."""
+    if not seq:
+        return 0.0
+    return (seq.count("G") + seq.count("C")) / len(seq)
+
+
+def _is_palindrome(seq: str) -> bool:
+    """Check if a DNA sequence is a palindrome (equals its reverse complement)."""
+    return seq == _reverse_complement(seq)
+
+
+def design_moclo_overhangs(parts: list[str]) -> dict[str, str]:
+    """Assign unique 4-bp overhangs to each part for MoClo assembly.
+
+    Overhangs are 4bp, GC content 40-60%, no palindromes, no reverse complement pairs.
+    Returns dict mapping part index (as string) to overhang sequence.
+    """
+    if not parts:
+        return {}
+
+    from itertools import product
+
+    # Generate all 4-bp sequences with exactly 2 G/C bases (50% GC content)
+    valid_overhangs = []
+    for seq_tuple in product("ATGC", repeat=4):
+        seq = "".join(seq_tuple)
+        gc_count = seq.count("G") + seq.count("C")
+        if gc_count != 2:  # Must be exactly 50% GC (2 out of 4)
+            continue
+        if _is_palindrome(seq):
+            continue
+        valid_overhangs.append(seq)
+
+    # Greedily select overhangs that don't form reverse complement pairs
+    selected = []
+    used = set()
+    for oh in valid_overhangs:
+        if len(selected) >= len(parts):
+            break
+        rc = _reverse_complement(oh)
+        if oh not in used and rc not in used:
+            selected.append(oh)
+            used.add(oh)
+            used.add(rc)
+
+    # Map part indices to overhangs
+    return {str(i): selected[i] for i in range(len(parts))}
+
+
+def validate_moclo_design(overhangs: dict[str, str]) -> dict:
+    """Validate MoClo overhang design.
+
+    Checks: all overhangs unique, no palindromes, no reverse complement pairs, GC content valid.
+    Returns dict with 'valid': bool, 'errors': list[str].
+    """
+    errors = []
+
+    if not overhangs:
+        return {"valid": True, "errors": []}
+
+    # Check all overhangs are 4bp
+    for key, oh in overhangs.items():
+        if len(oh) != 4:
+            errors.append(f"Overhang {key} ({oh}) is not 4bp")
+
+    # Check GC content 40-60%
+    for key, oh in overhangs.items():
+        gc = _gc_content(oh)
+        if gc < 0.4 or gc > 0.6:
+            errors.append(f"Overhang {key} ({oh}) has invalid GC content: {gc:.1%}")
+
+    # Check uniqueness
+    seen = {}
+    for key, oh in overhangs.items():
+        if oh in seen:
+            errors.append(f"Duplicate overhang {oh} at positions {seen[oh]} and {key}")
+        else:
+            seen[oh] = key
+
+    # Check no palindromes
+    for key, oh in overhangs.items():
+        if _is_palindrome(oh):
+            errors.append(f"Overhang {key} ({oh}) is a palindrome")
+
+    # Check no reverse complement pairs
+    items = list(overhangs.items())
+    for i, (key1, oh1) in enumerate(items):
+        for key2, oh2 in items[i + 1:]:
+            if oh1 == _reverse_complement(oh2):
+                errors.append(
+                    f"Overhangs {key1} ({oh1}) and {key2} ({oh2}) are reverse complements"
+                )
+
+    return {"valid": len(errors) == 0, "errors": errors}
+
+
+# ---------------------------------------------------------------------------
+# Codon Optimization & CAI
+# ---------------------------------------------------------------------------
+
+# Standard genetic code: amino acid -> list of codons
+GENETIC_CODE: dict[str, list[str]] = {
+    "A": ["GCT", "GCC", "GCA", "GCG"],
+    "R": ["CGT", "CGC", "CGA", "CGG", "AGA", "AGG"],
+    "N": ["AAT", "AAC"],
+    "D": ["GAT", "GAC"],
+    "C": ["TGT", "TGC"],
+    "Q": ["CAA", "CAG"],
+    "E": ["GAA", "GAG"],
+    "G": ["GGT", "GGC", "GGA", "GGG"],
+    "H": ["CAT", "CAC"],
+    "I": ["ATT", "ATC", "ATA"],
+    "L": ["TTA", "TTG", "CTT", "CTC", "CTA", "CTG"],
+    "K": ["AAA", "AAG"],
+    "M": ["ATG"],
+    "F": ["TTT", "TTC"],
+    "P": ["CCT", "CCC", "CCA", "CCG"],
+    "S": ["TCT", "TCC", "TCA", "TCG", "AGT", "AGC"],
+    "T": ["ACT", "ACC", "ACA", "ACG"],
+    "W": ["TGG"],
+    "Y": ["TAT", "TAC"],
+    "V": ["GTT", "GTC", "GTA", "GTG"],
+    "*": ["TAA", "TAG", "TGA"],
+}
+
+# Reverse mapping: codon -> amino acid
+CODON_TO_AA: dict[str, str] = {
+    codon: aa for aa, codons in GENETIC_CODE.items() for codon in codons
+}
+
+# Host-specific codon usage tables: host -> {codon: relative_adaptiveness (0-1)}
+# Relative adaptiveness = frequency of codon / frequency of most frequent synonymous codon
+CODON_USAGE_TABLES: dict[str, dict[str, float]] = {
+    "E.coli": {
+        # Ala
+        "GCT": 0.35, "GCC": 0.25, "GCA": 0.20, "GCG": 0.20,
+        # Arg
+        "CGT": 0.40, "CGC": 0.35, "CGA": 0.05, "CGG": 0.05, "AGA": 0.10, "AGG": 0.05,
+        # Asn
+        "AAT": 0.30, "AAC": 0.70,
+        # Asp
+        "GAT": 0.40, "GAC": 0.60,
+        # Cys
+        "TGT": 0.35, "TGC": 0.65,
+        # Gln
+        "CAA": 0.30, "CAG": 0.70,
+        # Glu
+        "GAA": 0.70, "GAG": 0.30,
+        # Gly
+        "GGT": 0.40, "GGC": 0.40, "GGA": 0.05, "GGG": 0.15,
+        # His
+        "CAT": 0.30, "CAC": 0.70,
+        # Ile
+        "ATT": 0.50, "ATC": 0.45, "ATA": 0.05,
+        # Leu
+        "TTA": 0.05, "TTG": 0.10, "CTT": 0.10, "CTC": 0.10, "CTA": 0.05, "CTG": 0.60,
+        # Lys
+        "AAA": 0.75, "AAG": 0.25,
+        # Met
+        "ATG": 1.00,
+        # Phe
+        "TTT": 0.60, "TTC": 0.40,
+        # Pro
+        "CCT": 0.15, "CCC": 0.10, "CCA": 0.15, "CCG": 0.60,
+        # Ser
+        "TCT": 0.15, "TCC": 0.15, "TCA": 0.10, "TCG": 0.10, "AGT": 0.15, "AGC": 0.35,
+        # Thr
+        "ACT": 0.20, "ACC": 0.50, "ACA": 0.10, "ACG": 0.20,
+        # Trp
+        "TGG": 1.00,
+        # Tyr
+        "TAT": 0.40, "TAC": 0.60,
+        # Val
+        "GTT": 0.30, "GTC": 0.20, "GTA": 0.20, "GTG": 0.30,
+        # Stop
+        "TAA": 0.60, "TAG": 0.10, "TGA": 0.30,
+    },
+    "S.cerevisiae": {
+        # Ala
+        "GCT": 0.40, "GCC": 0.20, "GCA": 0.25, "GCG": 0.15,
+        # Arg
+        "CGT": 0.15, "CGC": 0.05, "CGA": 0.05, "CGG": 0.05, "AGA": 0.45, "AGG": 0.25,
+        # Asn
+        "AAT": 0.30, "AAC": 0.70,
+        # Asp
+        "GAT": 0.60, "GAC": 0.40,
+        # Cys
+        "TGT": 0.60, "TGC": 0.40,
+        # Gln
+        "CAA": 0.70, "CAG": 0.30,
+        # Glu
+        "GAA": 0.75, "GAG": 0.25,
+        # Gly
+        "GGT": 0.50, "GGC": 0.20, "GGA": 0.10, "GGG": 0.20,
+        # His
+        "CAT": 0.40, "CAC": 0.60,
+        # Ile
+        "ATT": 0.50, "ATC": 0.30, "ATA": 0.20,
+        # Leu
+        "TTA": 0.20, "TTG": 0.20, "CTT": 0.10, "CTC": 0.05, "CTA": 0.10, "CTG": 0.35,
+        # Lys
+        "AAA": 0.60, "AAG": 0.40,
+        # Met
+        "ATG": 1.00,
+        # Phe
+        "TTT": 0.40, "TTC": 0.60,
+        # Pro
+        "CCT": 0.30, "CCC": 0.15, "CCA": 0.40, "CCG": 0.15,
+        # Ser
+        "TCT": 0.20, "TCC": 0.15, "TCA": 0.15, "TCG": 0.10, "AGT": 0.10, "AGC": 0.30,
+        # Thr
+        "ACT": 0.35, "ACC": 0.25, "ACA": 0.20, "ACG": 0.20,
+        # Trp
+        "TGG": 1.00,
+        # Tyr
+        "TAT": 0.35, "TAC": 0.65,
+        # Val
+        "GTT": 0.35, "GTC": 0.25, "GTA": 0.15, "GTG": 0.25,
+        # Stop
+        "TAA": 0.50, "TAG": 0.20, "TGA": 0.30,
+    },
+    "B.subtilis": {
+        # Ala
+        "GCT": 0.30, "GCC": 0.20, "GCA": 0.30, "GCG": 0.20,
+        # Arg
+        "CGT": 0.35, "CGC": 0.25, "CGA": 0.10, "CGG": 0.10, "AGA": 0.15, "AGG": 0.05,
+        # Asn
+        "AAT": 0.50, "AAC": 0.50,
+        # Asp
+        "GAT": 0.55, "GAC": 0.45,
+        # Cys
+        "TGT": 0.40, "TGC": 0.60,
+        # Gln
+        "CAA": 0.45, "CAG": 0.55,
+        # Glu
+        "GAA": 0.65, "GAG": 0.35,
+        # Gly
+        "GGT": 0.35, "GGC": 0.30, "GGA": 0.20, "GGG": 0.15,
+        # His
+        "CAT": 0.45, "CAC": 0.55,
+        # Ile
+        "ATT": 0.55, "ATC": 0.35, "ATA": 0.10,
+        # Leu
+        "TTA": 0.10, "TTG": 0.15, "CTT": 0.15, "CTC": 0.15, "CTA": 0.10, "CTG": 0.35,
+        # Lys
+        "AAA": 0.70, "AAG": 0.30,
+        # Met
+        "ATG": 1.00,
+        # Phe
+        "TTT": 0.55, "TTC": 0.45,
+        # Pro
+        "CCT": 0.25, "CCC": 0.15, "CCA": 0.30, "CCG": 0.30,
+        # Ser
+        "TCT": 0.20, "TCC": 0.20, "TCA": 0.15, "TCG": 0.15, "AGT": 0.10, "AGC": 0.20,
+        # Thr
+        "ACT": 0.30, "ACC": 0.35, "ACA": 0.15, "ACG": 0.20,
+        # Trp
+        "TGG": 1.00,
+        # Tyr
+        "TAT": 0.50, "TAC": 0.50,
+        # Val
+        "GTT": 0.30, "GTC": 0.25, "GTA": 0.20, "GTG": 0.25,
+        # Stop
+        "TAA": 0.55, "TAG": 0.15, "TGA": 0.30,
+    },
+}
+
+
+def optimize_codon_usage(protein_seq: str, host: str = "E.coli") -> str:
+    """Optimize codon usage for expression in a given host.
+
+    Returns DNA sequence encoding the protein using the most frequent
+    synonymous codon for each amino acid in the specified host.
+
+    Supported hosts: 'E.coli', 'S.cerevisiae', 'B.subtilis'.
+    """
+    if host not in CODON_USAGE_TABLES:
+        raise ValueError(f"Unsupported host: {host}")
+
+    usage_table = CODON_USAGE_TABLES[host]
+    dna = []
+
+    for aa in protein_seq.upper():
+        if aa not in GENETIC_CODE:
+            raise ValueError(f"Unknown amino acid: {aa}")
+
+        codons = GENETIC_CODE[aa]
+        # Pick the codon with highest relative adaptiveness
+        best_codon = max(codons, key=lambda c: usage_table.get(c, 0.0))
+        dna.append(best_codon)
+
+    return "".join(dna)
+
+
+def calculate_cai(dna_seq: str, host: str = "E.coli") -> float:
+    """Calculate Codon Adaptation Index (CAI) for a DNA sequence.
+
+    CAI ranges from 0 to 1, where higher values indicate better adaptation
+    to the host's codon usage preferences.
+
+    Supported hosts: 'E.coli', 'S.cerevisiae', 'B.subtilis'.
+    """
+    if host not in CODON_USAGE_TABLES:
+        raise ValueError(f"Unsupported host: {host}")
+
+    if not dna_seq:
+        return 0.0
+
+    usage_table = CODON_USAGE_TABLES[host]
+    seq = dna_seq.upper()
+
+    # Extract codons (skip incomplete trailing codon)
+    codons = [seq[i:i + 3] for i in range(0, len(seq) - 2, 3)]
+
+    if not codons:
+        return 0.0
+
+    # Calculate relative adaptiveness for each codon
+    # w_i = observed frequency of codon / max frequency among synonymous codons
+    # For our pre-computed tables, the values are already relative adaptiveness
+    weights = []
+    for codon in codons:
+        if codon in CODON_TO_AA:
+            aa = CODON_TO_AA[codon]
+            # Get all synonymous codons for this amino acid
+            synonymous = GENETIC_CODE[aa]
+            # Get the max relative adaptiveness among synonymous codons
+            max_w = max(usage_table.get(c, 0.0) for c in synonymous)
+            if max_w > 0:
+                w = usage_table.get(codon, 0.0) / max_w
+            else:
+                w = 0.0
+            weights.append(w)
+
+    if not weights:
+        return 0.0
+
+    # CAI = geometric mean of relative adaptiveness values
+    import math
+    log_sum = sum(math.log(w) for w in weights if w > 0)
+    n = len([w for w in weights if w > 0])
+    if n == 0:
+        return 0.0
+
+    cai = math.exp(log_sum / n)
+    return max(0.0, min(1.0, cai))

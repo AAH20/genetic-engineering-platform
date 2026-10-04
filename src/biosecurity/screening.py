@@ -382,6 +382,107 @@ class ComplianceChecker:
         }
 
 
+def classify_bsl_level(sequence: str) -> str:
+    """Classify a DNA sequence into a Biosafety Level (BSL-1 through BSL-4).
+
+    Classification is based on:
+    - BSL-1: No threat patterns, normal GC content
+    - BSL-2: No threats but unusual GC content (>80% or <20%), or dual-use patterns
+    - BSL-3: Known toxin/virulence threat patterns detected
+    - BSL-4: Multiple high-risk threat patterns detected
+
+    Args:
+        sequence: DNA sequence to classify.
+
+    Returns:
+        BSL level string: "BSL-1", "BSL-2", "BSL-3", or "BSL-4".
+    """
+    if not sequence:
+        return "BSL-1"
+
+    seq_upper = sequence.upper()
+
+    # Count threat pattern matches
+    threat_count = 0
+    for pattern in THREAT_PATTERNS.values():
+        if pattern in seq_upper:
+            threat_count += 1
+
+    # Multiple threats → BSL-4
+    if threat_count >= 2:
+        return "BSL-4"
+
+    # Single threat → BSL-3
+    if threat_count == 1:
+        return "BSL-3"
+
+    # Check GC content
+    gc_count = seq_upper.count("G") + seq_upper.count("C")
+    gc_content = gc_count / len(seq_upper) if seq_upper else 0.0
+
+    # Unusual GC content → BSL-2
+    if gc_content > 0.8 or gc_content < 0.2:
+        return "BSL-2"
+
+    # Check dual-use patterns
+    for pattern in DUAL_USE_PATTERNS.values():
+        if pattern in seq_upper:
+            return "BSL-2"
+
+    return "BSL-1"
+
+
+def check_bsl_clearance(sequence: str, user_bsl_level: str) -> dict:
+    """Check if a user with given BSL clearance can handle a sequence.
+
+    Args:
+        sequence: DNA sequence to check.
+        user_bsl_level: User's BSL clearance level (e.g., "BSL-2").
+
+    Returns:
+        Dict with 'allowed', 'required_bsl', and 'reason' keys.
+    """
+    required_bsl = classify_bsl_level(sequence)
+
+    # Parse BSL levels to integers
+    try:
+        user_level = int(user_bsl_level.replace("BSL-", ""))
+    except (ValueError, AttributeError):
+        return {
+            "allowed": False,
+            "required_bsl": required_bsl,
+            "reason": f"Invalid BSL level: {user_bsl_level}",
+        }
+
+    try:
+        required_level = int(required_bsl.replace("BSL-", ""))
+    except (ValueError, AttributeError):
+        return {
+            "allowed": False,
+            "required_bsl": required_bsl,
+            "reason": f"Invalid required BSL level: {required_bsl}",
+        }
+
+    if user_level >= required_level:
+        return {
+            "allowed": True,
+            "required_bsl": required_bsl,
+            "reason": (
+                f"User clearance ({user_bsl_level}) is sufficient "
+                f"for {required_bsl} sequence"
+            ),
+        }
+    else:
+        return {
+            "allowed": False,
+            "required_bsl": required_bsl,
+            "reason": (
+                f"Insufficient clearance: user has {user_bsl_level} "
+                f"but sequence requires {required_bsl}"
+            ),
+        }
+
+
 class BiosecurityGate:
     """Gate that evaluates sequences for biosecurity compliance."""
 

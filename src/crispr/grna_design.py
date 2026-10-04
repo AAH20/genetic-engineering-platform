@@ -144,6 +144,88 @@ def find_off_target_sites(
     return off_targets
 
 
+def build_kmer_index(genome: str, k: int = 8) -> dict[str, list[int]]:
+    """Build a k-mer index for fast off-target lookup.
+
+    Args:
+        genome: Genome sequence.
+        k: k-mer length.
+
+    Returns:
+        Dict mapping k-mer -> list of positions.
+    """
+    if not genome or len(genome) < k:
+        return {}
+    genome_upper = genome.upper()
+    index: dict[str, list[int]] = {}
+    for i in range(len(genome_upper) - k + 1):
+        kmer = genome_upper[i : i + k]
+        index.setdefault(kmer, []).append(i)
+    return index
+
+
+def find_off_target_sites_indexed(
+    grna: str,
+    genome: str,
+    max_mismatches: int = 3,
+    k: int = 8,
+) -> list[dict]:
+    """Find off-target sites using k-mer indexed search.
+
+    Uses a k-mer index to quickly locate candidate regions, then
+    verifies mismatches only in those regions. Much faster than
+    brute-force for large genomes.
+
+    Args:
+        grna: 20-nt gRNA sequence.
+        genome: Genome sequence to search.
+        max_mismatches: Maximum number of mismatches allowed.
+        k: k-mer length for indexing.
+
+    Returns:
+        List of off-target sites with 'position', 'sequence',
+        'mismatches', and 'score' keys.
+    """
+    if not validate_grna_sequence(grna) or not genome:
+        return []
+
+    grna_upper = grna.upper()
+    genome_upper = genome.upper()
+    index = build_kmer_index(genome_upper, k=k)
+
+    # Extract k-mers from gRNA and look up candidates
+    candidates: set[int] = set()
+    for i in range(len(grna_upper) - k + 1):
+        kmer = grna_upper[i : i + k]
+        for pos in index.get(kmer, []):
+            # Candidate start position in genome
+            candidate_start = pos - i
+            if 0 <= candidate_start <= len(genome_upper) - 20:
+                candidates.add(candidate_start)
+
+    # Verify candidates
+    off_targets: list[dict] = []
+    seen: set[int] = set()
+    for start in sorted(candidates):
+        if start in seen:
+            continue
+        site = genome_upper[start : start + 20]
+        mismatches = sum(1 for a, b in zip(grna_upper, site) if a != b)
+        if mismatches <= max_mismatches:
+            seen.add(start)
+            score = 1.0 / (1.0 + mismatches)
+            off_targets.append(
+                {
+                    "position": start,
+                    "sequence": site,
+                    "mismatches": mismatches,
+                    "score": round(score, 4),
+                }
+            )
+
+    return off_targets
+
+
 def design_grna(
     target: str,
     pam: str = "NGG",
@@ -434,6 +516,145 @@ def calculate_base_editing_efficiency(seq: str, editor_type: str = "CBE") -> flo
             abs_pos = window_start + idx
             pam_proximity = (len(seq_upper) - 1 - abs_pos) / len(seq_upper)
             score += pam_proximity * 0.1
+
+    return max(0.0, min(1.0, score))
+
+
+def _reverse_complement(seq: str) -> str:
+    """Return the reverse complement of a DNA sequence."""
+    complement = {"A": "T", "T": "A", "C": "G", "G": "C"}
+    return "".join(complement[c] for c in reversed(seq.upper()))
+
+
+def design_prime_editing_grna(
+    target: str,
+    pam: str = "NGG",
+    rt_template_len: int = 10,
+    pbs_len: int = 10,
+) -> Optional[dict]:
+    """Design a pegRNA for prime editing.
+
+    Finds a PAM site in the target and designs a pegRNA with:
+    - 20nt spacer upstream of the PAM
+    - RT template (reverse complement of region downstream of the nick)
+    - PBS (sequence upstream of the nick site)
+
+    Args:
+        target: Target DNA sequence.
+        pam: PAM sequence (default NGG).
+        rt_template_len: Length of the RT template in nucleotides.
+        pbs_len: Length of the PBS in nucleotides.
+
+    Returns:
+        Dictionary with 'spacer', 'rt_template', 'pbs', 'pam', and 'efficiency'
+        keys, or None if no valid PAM site is found.
+    """
+    if not target:
+        return None
+
+    target_upper = target.upper()
+    pam_upper = pam.upper()
+    pam_len = len(pam_upper)
+    grna_len = 20
+
+    def _pam_matches(potential: str, pam_pattern: str) -> bool:
+        """Check if a PAM matches the pattern (N = wildcard)."""
+        return all(p == "N" or p == g for p, g in zip(pam_pattern, potential))
+
+    for i in range(len(target_upper) - pam_len - grna_len + 1):
+        potential_grna = target_upper[i : i + grna_len]
+        potential_pam = target_upper[i + grna_len : i + grna_len + pam_len]
+
+        if _pam_matches(potential_pam, pam_upper):
+            if validate_grna_sequence(potential_grna):
+                # Nick site is 3nt upstream of PAM
+                nick_offset = i + grna_len - 3
+
+                # RT template: reverse complement of region downstream of nick
+                rt_start = nick_offset
+                rt_end = min(rt_start + rt_template_len, len(target_upper))
+                rt_region = target_upper[rt_start:rt_end]
+                rt_template = _reverse_complement(rt_region)
+
+                # PBS: sequence upstream of the nick site
+                pbs_start = max(0, nick_offset - pbs_len)
+                pbs_region = target_upper[pbs_start:nick_offset]
+                pbs = pbs_region
+
+                efficiency = calculate_prime_editing_efficiency(
+                    potential_grna, rt_template, pbs
+                )
+
+                return {
+                    "spacer": potential_grna,
+                    "rt_template": rt_template,
+                    "pbs": pbs,
+                    "pam": pam_upper,
+                    "efficiency": round(efficiency, 4),
+                }
+
+    return None
+
+
+def calculate_prime_editing_efficiency(
+    spacer: str, rt_template: str, pbs: str
+) -> float:
+    """Calculate prime editing efficiency score.
+
+    Score based on:
+    - GC content of spacer (optimal 40-60%)
+    - RT template length (optimal 10-15nt)
+    - PBS length (optimal 10-15nt)
+    - PBS GC content (optimal 40-60%)
+
+    Args:
+        spacer: 20-nt spacer sequence.
+        rt_template: RT template sequence.
+        pbs: PBS sequence.
+
+    Returns:
+        Efficiency score between 0.0 and 1.0.
+    """
+    if not spacer or not validate_grna_sequence(spacer):
+        return 0.0
+
+    score = 0.0
+
+    # GC content of spacer (optimal 40-60%)
+    spacer_gc = calculate_gc_content(spacer)
+    if 0.40 <= spacer_gc <= 0.60:
+        score += 0.3
+    elif 0.30 <= spacer_gc <= 0.70:
+        score += 0.15
+    else:
+        score += 0.05
+
+    # RT template length score (optimal 10-15nt)
+    rt_len = len(rt_template)
+    if 10 <= rt_len <= 15:
+        score += 0.25
+    elif 8 <= rt_len <= 20:
+        score += 0.15
+    else:
+        score += 0.05
+
+    # PBS length score (optimal 10-15nt)
+    pbs_len = len(pbs)
+    if 10 <= pbs_len <= 15:
+        score += 0.25
+    elif 8 <= pbs_len <= 20:
+        score += 0.15
+    else:
+        score += 0.05
+
+    # PBS GC content (optimal 40-60%)
+    pbs_gc = calculate_gc_content(pbs)
+    if 0.40 <= pbs_gc <= 0.60:
+        score += 0.2
+    elif 0.30 <= pbs_gc <= 0.70:
+        score += 0.1
+    else:
+        score += 0.05
 
     return max(0.0, min(1.0, score))
 

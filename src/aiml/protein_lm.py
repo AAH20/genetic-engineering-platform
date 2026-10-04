@@ -9,6 +9,7 @@ Implements:
 from __future__ import annotations
 
 import hashlib
+import json
 import random
 from collections import Counter
 
@@ -70,6 +71,7 @@ class ProteinLanguageModel:
         self.max_length = max_length
         self.k = 3  # k-mer size
         self.embedding_dim = 256
+        self._embedding_cache: dict[str, list[float]] = {}
 
     def embed(self, sequence: str) -> np.ndarray:
         """Generate a k-mer embedding for a protein sequence.
@@ -175,6 +177,51 @@ class ProteinLanguageModel:
             List of numpy arrays, one per input sequence.
         """
         return [self.embed(seq) for seq in sequences]
+
+    def save(self, path: str) -> None:
+        """Save model state to a JSON file.
+
+        Args:
+            path: File path to save the model state.
+        """
+        state = {
+            "name": self.name,
+            "max_length": self.max_length,
+            "k": self.k,
+            "embedding_dim": self.embedding_dim,
+        }
+        with open(path, "w") as f:
+            json.dump(state, f)
+
+    @classmethod
+    def load(cls, path: str) -> ProteinLanguageModel:
+        """Load model from a JSON file.
+
+        Args:
+            path: File path to load the model state from.
+
+        Returns:
+            A new ProteinLanguageModel instance with the loaded state.
+        """
+        with open(path) as f:
+            state = json.load(f)
+        model = cls(name=state["name"], max_length=state["max_length"])
+        model.k = state["k"]
+        model.embedding_dim = state["embedding_dim"]
+        return model
+
+    def embed_cached(self, sequence: str) -> list[float]:
+        """Return cached embedding if available, otherwise compute and cache.
+
+        Args:
+            sequence: Amino acid sequence.
+
+        Returns:
+            List of floats representing the embedding.
+        """
+        if sequence not in self._embedding_cache:
+            self._embedding_cache[sequence] = self.embed(sequence).tolist()
+        return self._embedding_cache[sequence]
 
     def predict_variant_effect_batch(self, variants: list[dict]) -> list[float]:
         """Predict variant effects for a batch of variants.

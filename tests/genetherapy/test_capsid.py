@@ -1,5 +1,4 @@
 """Test-driven development: Capsid engineering predictions module."""
-import pytest
 
 from src.genetherapy.vector_design import (
     predict_capsid_antibody_binding,

@@ -5,7 +5,10 @@ from src.genetherapy.vector_design import (
     ImmuneResponsePredictor,
     Vector,
     calculate_dose,
+    calculate_moi,
+    calculate_required_volume,
     calculate_titer,
+    calculate_transduction_efficiency,
     check_capacity,
     optimize_delivery,
     predict_immunogenicity,
@@ -22,4 +25,7 @@ __all__ = [
     "DeliveryOptimizer",
     "optimize_delivery",
     "calculate_dose",
+    "calculate_moi",
+    "calculate_transduction_efficiency",
+    "calculate_required_volume",
 ]

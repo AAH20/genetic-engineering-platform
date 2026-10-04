@@ -12,6 +12,7 @@ Implements:
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -411,3 +412,57 @@ def suggest_immune_evasion(serotype: str, patient_age: int) -> list[str]:
         strategies.append("empty_capsid_decoy")
 
     return strategies
+
+
+# ---------------------------------------------------------------------------
+# MOI and transduction efficiency
+# ---------------------------------------------------------------------------
+def calculate_moi(vector_dose: float, cell_count: int) -> float:
+    """Calculate multiplicity of infection (MOI).
+
+    Args:
+        vector_dose: Total vector genomes administered.
+        cell_count: Number of target cells.
+
+    Returns:
+        MOI = vector_dose / cell_count.
+
+    Raises:
+        ValueError: If cell_count is zero.
+    """
+    if cell_count == 0:
+        raise ValueError("Cell count must be non-zero")
+    return vector_dose / cell_count
+
+
+def calculate_transduction_efficiency(moi: float) -> float:
+    """Estimate transduction efficiency based on MOI using Poisson distribution.
+
+    P(transduction) = 1 - exp(-MOI)
+
+    Args:
+        moi: Multiplicity of infection.
+
+    Returns:
+        Transduction efficiency between 0.0 and 1.0.
+    """
+    return 1.0 - math.exp(-moi)
+
+
+def calculate_required_volume(titer: float, target_dose: float, cell_count: int) -> float:
+    """Calculate required injection volume in mL.
+
+    Args:
+        titer: Vector titer in vg/mL.
+        target_dose: Desired dose per cell (MOI).
+        cell_count: Number of target cells.
+
+    Returns:
+        Required volume in mL.
+
+    Raises:
+        ValueError: If titer is zero.
+    """
+    if titer == 0:
+        raise ValueError("Titer must be non-zero")
+    return target_dose * cell_count / titer

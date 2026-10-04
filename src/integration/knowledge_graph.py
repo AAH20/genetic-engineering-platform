@@ -121,6 +121,121 @@ class KnowledgeGraph:
         """Reconstruct a KnowledgeGraph from a JSON string."""
         return cls.from_dict(json.loads(json_str))
 
+    def query_sparql(self, query: str) -> list[dict[str, str]]:
+        """Execute a basic SPARQL-like SELECT WHERE query.
+
+        Supports patterns like:
+          SELECT ?s WHERE { ?s type Gene }
+          SELECT ?s ?o WHERE { ?s associated_with ?o }
+          SELECT ?o WHERE { gene_1 associated_with ?o }
+
+        Returns a list of dicts with variable bindings.
+        """
+        import re
+
+        # Parse: SELECT <vars> WHERE { <s> <p> <o> }
+        m = re.match(
+            r"SELECT\s+((?:\?\w+\s*)+)WHERE\s*\{\s*(\S+)\s+(\S+)\s+(\S+)\s*\}",
+            query.strip(),
+            re.IGNORECASE,
+        )
+        if not m:
+            raise ValueError(f"Unsupported SPARQL query: {query}")
+
+        var_str, subj, pred, obj = m.groups()
+
+        results: list[dict[str, str]] = []
+
+        if pred == "type":
+            # Type query: find entities of a given type
+            type_name = obj
+            for entity_id, entity_data in self.entities.items():
+                if entity_data["type"] == type_name:
+                    binding: dict[str, str] = {}
+                    if subj.startswith("?"):
+                        binding[subj[1:]] = entity_id
+                    if obj.startswith("?"):
+                        binding[obj[1:]] = type_name
+                    if binding:
+                        results.append(binding)
+        else:
+            # Relation query: find matching relations
+            for source, relation, target, _weight in self.relations:
+                if relation != pred:
+                    continue
+                # Check subject constraint
+                if not subj.startswith("?") and subj != source:
+                    continue
+                # Check object constraint
+                if not obj.startswith("?") and obj != target:
+                    continue
+                binding = {}
+                if subj.startswith("?"):
+                    binding[subj[1:]] = source
+                if obj.startswith("?"):
+                    binding[obj[1:]] = target
+                if binding:
+                    results.append(binding)
+
+        return results
+
+    def to_graphml(self) -> str:
+        """Export the graph as a GraphML XML string."""
+        lines = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<graphml xmlns="http://graphml.graphdrawing.org/xmlns" '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+            'xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns '
+            'http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">',
+            '  <key id="d0" for="node" attr.name="type" attr.type="string"/>',
+            '  <key id="d1" for="node" attr.name="name" attr.type="string"/>',
+            '  <key id="d2" for="edge" attr.name="relation" attr.type="string"/>',
+            '  <graph id="G" edgedefault="directed">',
+        ]
+
+        for entity_id, entity_data in self.entities.items():
+            entity_type = entity_data["type"]
+            name = entity_data.get("properties", {}).get("name", "")
+            lines.append(f'    <node id="{entity_id}">')
+            lines.append(f'      <data key="d0">{entity_type}</data>')
+            lines.append(f'      <data key="d1">{name}</data>')
+            lines.append('    </node>')
+
+        for i, (source, relation, target, _w) in enumerate(self.relations):
+            lines.append(f'    <edge id="e{i}" source="{source}" target="{target}">')
+            lines.append(f'      <data key="d2">{relation}</data>')
+            lines.append('    </edge>')
+
+        lines.append('  </graph>')
+        lines.append('</graphml>')
+        return "\n".join(lines)
+
+    def to_cytoscape_json(self) -> dict:
+        """Export the graph as a Cytoscape-compatible JSON dict."""
+        nodes = []
+        for entity_id, entity_data in self.entities.items():
+            name = entity_data.get("properties", {}).get("name", entity_id)
+            nodes.append({
+                "data": {
+                    "id": entity_id,
+                    "label": name,
+                    "type": entity_data["type"],
+                }
+            })
+
+        edges = []
+        for i, (source, relation, target, _w) in enumerate(self.relations):
+            edges.append({
+                "data": {
+                    "id": f"e{i}",
+                    "source": source,
+                    "target": target,
+                    "label": relation,
+                }
+            })
+
+        return {"nodes": nodes, "edges": edges}
+
 
 # =============================================================================
 # Ontology

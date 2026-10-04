@@ -1,6 +1,7 @@
 """TDD tests for GPR rules and exchange reactions."""
 import pytest
-from src.metabolic.fba import MetabolicModel, Reaction
+
+from src.metabolic.fba import MetabolicModel
 
 
 class TestGPRRules:

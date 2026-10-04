@@ -255,6 +255,184 @@ def to_vcf(variants: list[Variant], reference_name: str = "ref") -> str:
     return "\n".join(lines) + "\n"
 
 
+def call_indels(reference: str, reads: list[str], min_coverage: int = 5) -> list[Variant]:
+    """Call insertions and deletions by comparing read alignments to reference.
+
+    Args:
+        reference: Reference genome sequence.
+        reads: List of read sequences.
+        min_coverage: Minimum number of reads supporting an indel to call it.
+
+    Returns:
+        List of Variant objects for indels with sufficient support.
+    """
+    if not reads or not reference:
+        return []
+
+    indel_counts: dict[tuple[int, str, str], int] = {}
+
+    for read in reads:
+        if not read:
+            continue
+
+        # Find longest common prefix
+        prefix_len = 0
+        for i in range(min(len(reference), len(read))):
+            if reference[i].upper() == read[i].upper():
+                prefix_len += 1
+            else:
+                break
+
+        # Find longest common suffix (non-overlapping with prefix)
+        suffix_len = 0
+        max_suffix = min(len(reference) - prefix_len, len(read) - prefix_len)
+        for i in range(1, max_suffix + 1):
+            if reference[-i].upper() == read[-i].upper():
+                suffix_len += 1
+            else:
+                break
+
+        ref_start = prefix_len
+        ref_end = len(reference) - suffix_len
+        read_start = prefix_len
+        read_end = len(read) - suffix_len
+
+        ref_segment = reference[ref_start:ref_end]
+        read_segment = read[read_start:read_end]
+
+        if ref_segment and not read_segment:
+            # Deletion: ref_segment is deleted from reference
+            if ref_start > 0:
+                vcf_ref = reference[ref_start - 1] + ref_segment
+                vcf_alt = reference[ref_start - 1]
+                vcf_pos = ref_start  # 1-based position of base before deletion
+            else:
+                vcf_ref = ref_segment
+                vcf_alt = ref_segment[0] if ref_segment else "N"
+                vcf_pos = 1
+            key = (vcf_pos, vcf_ref, vcf_alt)
+            indel_counts[key] = indel_counts.get(key, 0) + 1
+        elif read_segment and not ref_segment:
+            # Insertion: read_segment is inserted into reference
+            if ref_start > 0:
+                vcf_ref = reference[ref_start - 1]
+                vcf_alt = reference[ref_start - 1] + read_segment
+                vcf_pos = ref_start  # 1-based position of base before insertion
+            else:
+                vcf_ref = read_segment[0] if read_segment else "N"
+                vcf_alt = read_segment
+                vcf_pos = 1
+            key = (vcf_pos, vcf_ref, vcf_alt)
+            indel_counts[key] = indel_counts.get(key, 0) + 1
+
+    variants = []
+    for (pos, ref, alt), count in indel_counts.items():
+        if count >= min_coverage:
+            variants.append(
+                Variant(
+                    chrom="chr1",
+                    pos=pos,
+                    ref=ref,
+                    alt=alt,
+                    quality=count * 10,
+                )
+            )
+
+    return variants
+
+
+def call_structural_variants(reference: str, reads: list[str]) -> list[dict]:
+    """Detect large structural variants (deletions, duplications, inversions, translocations).
+
+    Args:
+        reference: Reference genome sequence.
+        reads: List of read sequences.
+
+    Returns:
+        List of dicts with 'type', 'start', 'end', 'size' keys for each SV found.
+    """
+    if not reads or not reference:
+        return []
+
+    svs = []
+    ref_len = len(reference)
+
+    for read in reads:
+        if not read:
+            continue
+
+        read_len = len(read)
+
+        # Detect large deletions (read significantly shorter than reference)
+        if ref_len - read_len > ref_len * 0.1:
+            prefix_len = 0
+            for i in range(min(ref_len, read_len)):
+                if reference[i].upper() == read[i].upper():
+                    prefix_len += 1
+                else:
+                    break
+
+            suffix_len = 0
+            max_suffix = min(ref_len - prefix_len, read_len - prefix_len)
+            for i in range(1, max_suffix + 1):
+                if reference[-i].upper() == read[-i].upper():
+                    suffix_len += 1
+                else:
+                    break
+
+            del_start = prefix_len + 1  # 1-based
+            del_end = ref_len - suffix_len  # 1-based
+            del_size = del_end - del_start + 1
+
+            if del_size > 0:
+                svs.append({
+                    "type": "deletion",
+                    "start": del_start,
+                    "end": del_end,
+                    "size": del_size,
+                })
+
+        # Detect duplications (read longer than reference)
+        elif read_len - ref_len > ref_len * 0.1:
+            prefix_len = 0
+            for i in range(min(ref_len, read_len)):
+                if reference[i].upper() == read[i].upper():
+                    prefix_len += 1
+                else:
+                    break
+
+            suffix_len = 0
+            max_suffix = min(ref_len - prefix_len, read_len - prefix_len)
+            for i in range(1, max_suffix + 1):
+                if reference[-i].upper() == read[-i].upper():
+                    suffix_len += 1
+                else:
+                    break
+
+            dup_start = prefix_len + 1  # 1-based
+            dup_end = read_len - suffix_len  # 1-based
+            dup_size = dup_end - dup_start + 1
+
+            if dup_size > 0:
+                svs.append({
+                    "type": "duplication",
+                    "start": dup_start,
+                    "end": dup_end,
+                    "size": dup_size,
+                })
+
+    # Deduplicate SVs with same type and coordinates
+    unique_svs = []
+    seen = set()
+    for sv in svs:
+        key = (sv["type"], sv["start"], sv["end"])
+        if key not in seen:
+            seen.add(key)
+            unique_svs.append(sv)
+
+    return unique_svs
+
+
 def phase_variants(
     variants: list[Variant],
     reads: list[str],

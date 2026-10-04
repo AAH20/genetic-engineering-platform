@@ -1,5 +1,4 @@
 """Test-driven development: RBS calculator and designer."""
-import pytest
 
 from src.synbio.genetic_circuits import calculate_rbs_strength, design_rbs
 

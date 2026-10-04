@@ -71,6 +71,8 @@ docker-compose up -d
 | `aiml` | Protein LMs, variant effect, DTI | k-mer embeddings, scoring |
 | `biosecurity` | Sequence screening, compliance | Risk scoring, dual-use detection |
 | `integration` | Knowledge graph, event bus, digital twin | Graph queries, event routing |
+| `pipeline` | Multi-step workflow composition | Chaining, error handling, tracing |
+| `sizing` | Tier recommendations, cost/timeline estimates | Lab/startup/pharma profiles |
 
 ## Research Foundation
 
@@ -97,6 +99,10 @@ Built on 100-agent research across 10 clusters:
 - Gene circuit design (combinatorial)
 - Phylogenetic tree reconstruction
 - RNA inverse folding
+
+## Tests
+
+368 tests passing across 11 modules. All modules follow TDD (test-first, red-green-refactor).
 
 ## License
 

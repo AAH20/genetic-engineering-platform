@@ -33,6 +33,24 @@ ml = [
     "scikit-learn>=1.3.0,<2.0.0",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/aiml",
+    "src/biosecurity",
+    "src/crispr",
+    "src/genetherapy",
+    "src/genomics",
+    "src/integration",
+    "src/metabolic",
+    "src/pipeline",
+    "src/protein",
+    "src/sizing",
+    "src/synbio",
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "tests/", "docs/", "examples/", "README.md", "LICENSE"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

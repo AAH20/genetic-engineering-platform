@@ -195,9 +195,13 @@ class DigitalTwin:
             return copy.deepcopy(self._state)
         for _ in range(steps):
             if "cell_count" in self._state:
-                self._state["cell_count"] = max(1, round(
-                    self._state["cell_count"] * (1 + random.uniform(-0.1, 0.1))
-                ))
+                old = self._state["cell_count"]
+                new = old * (1 + random.uniform(-0.1, 0.1))
+                # Guarantee minimum change of 1 to avoid rounding collapse
+                if new > old:
+                    self._state["cell_count"] = max(old + 1, round(new))
+                else:
+                    self._state["cell_count"] = max(1, min(old - 1, round(new)))
             if "temperature" in self._state:
                 self._state["temperature"] += random.uniform(-0.5, 0.5)
             if "ph" in self._state:

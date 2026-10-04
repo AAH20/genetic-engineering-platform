@@ -123,6 +123,37 @@ class ProteinSequence:
     def __len__(self) -> int:
         return self.length
 
+    @property
+    def molecular_weight(self) -> float:
+        """Return molecular weight in Daltons."""
+        return calculate_molecular_weight(self._sequence)
+
+    @property
+    def isoelectric_point(self) -> float:
+        """Return estimated pI."""
+        return calculate_isoelectric_point(self._sequence)
+
+    @property
+    def stability(self) -> float:
+        """Return stability score."""
+        return predict_stability(self._sequence)
+
+    @property
+    def structure(self) -> str:
+        """Return predicted structure type."""
+        return predict_structure(self._sequence)
+
+    def to_dict(self) -> dict:
+        """Return sequence data as dictionary."""
+        return {
+            "sequence": self._sequence,
+            "length": self.length,
+            "weight": self.molecular_weight,
+            "pi": self.isoelectric_point,
+            "stability": self.stability,
+            "structure": self.structure,
+        }
+
 
 def calculate_molecular_weight(seq: str) -> float:
     """Calculate molecular weight of a protein sequence.
@@ -295,3 +326,119 @@ def predict_structure(seq: str) -> str:
         return "beta"
     else:
         return "mixed"
+
+
+def identify_domains(seq: str, min_length: int = 10) -> list[dict]:
+    """Identify structural domains in a protein sequence.
+
+    Uses hydrophobic clustering to detect potential domain boundaries.
+
+    Args:
+        seq: Amino acid sequence.
+        min_length: Minimum domain length.
+
+    Returns:
+        List of domain dicts with 'start', 'end', 'type' keys.
+    """
+    if not seq or len(seq) < min_length:
+        return []
+    seq_upper = seq.upper()
+    invalid = set(seq_upper) - VALID_AMINO_ACIDS
+    if invalid:
+        raise ValueError(f"Invalid amino acids: {invalid}")
+
+    domains: list[dict] = []
+    in_hydrophobic = False
+    start = 0
+
+    for i, aa in enumerate(seq_upper):
+        is_hydrophobic = aa in HYDROPHOBIC_AA
+        if is_hydrophobic and not in_hydrophobic:
+            start = i
+            in_hydrophobic = True
+        elif not is_hydrophobic and in_hydrophobic:
+            if i - start >= min_length:
+                domains.append({
+                    "start": start,
+                    "end": i,
+                    "type": "hydrophobic_domain",
+                })
+            in_hydrophobic = False
+
+    if in_hydrophobic and len(seq_upper) - start >= min_length:
+        domains.append({
+            "start": start,
+            "end": len(seq_upper),
+            "type": "hydrophobic_domain",
+        })
+
+    return domains
+
+
+def predict_signal_peptide(seq: str) -> dict:
+    """Predict presence of N-terminal signal peptide.
+
+    Uses a simple heuristic: hydrophobic stretch in first 30 residues
+    followed by a cleavage site motif.
+
+    Args:
+        seq: Amino acid sequence.
+
+    Returns:
+        Dict with 'has_signal' and 'cleavage_site' keys.
+    """
+    if not seq or len(seq) < 10:
+        return {"has_signal": False, "cleavage_site": -1}
+
+    seq_upper = seq.upper()
+    invalid = set(seq_upper) - VALID_AMINO_ACIDS
+    if invalid:
+        raise ValueError(f"Invalid amino acids: {invalid}")
+
+    n_term = seq_upper[:30]
+    hydrophobic_count = sum(1 for aa in n_term if aa in HYDROPHOBIC_AA)
+
+    if hydrophobic_count >= 8:
+        for i in range(3, min(len(seq_upper) - 3, 30)):
+            if seq_upper[i] in "ST" and seq_upper[i - 3:i].count("A") >= 1:
+                return {"has_signal": True, "cleavage_site": i}
+
+    return {"has_signal": False, "cleavage_site": -1}
+
+
+def calculate_charge_at_ph(seq: str, ph: float) -> float:
+    """Calculate net charge of protein at given pH.
+
+    Uses Henderson-Hasselbalch approximation with standard pKa values.
+
+    Args:
+        seq: Amino acid sequence.
+        ph: pH value.
+
+    Returns:
+        Net charge as float.
+    """
+    if not seq:
+        return 0.0
+    seq_upper = seq.upper()
+    invalid = set(seq_upper) - VALID_AMINO_ACIDS
+    if invalid:
+        raise ValueError(f"Invalid amino acids: {invalid}")
+
+    charge = 0.0
+    charge += 1.0 / (1.0 + 10 ** (ph - 9.0))
+    charge -= 1.0 / (1.0 + 10 ** (2.0 - ph))
+
+    for aa in seq_upper:
+        if aa == "D":
+            charge -= 1.0 / (1.0 + 10 ** (3.9 - ph))
+        elif aa == "E":
+            charge -= 1.0 / (1.0 + 10 ** (4.3 - ph))
+        elif aa == "K":
+            charge += 1.0 / (1.0 + 10 ** (ph - 10.5))
+        elif aa == "R":
+            charge += 1.0 / (1.0 + 10 ** (ph - 12.5))
+        elif aa == "H":
+            charge += 1.0 / (1.0 + 10 ** (ph - 6.0))
+
+    return round(charge, 2)

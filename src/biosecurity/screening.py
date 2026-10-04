@@ -46,6 +46,80 @@ REGULATORY_FRAMEWORKS: dict[str, dict[str, Any]] = {
 }
 
 
+# Synonymous codon groups for watermarking
+WATERMARK_CODON_GROUPS: list[list[str]] = [
+    ["GCT", "GCC", "GCA", "GCG"],  # Ala
+    ["TCT", "TCC", "TCA", "TCG", "AGT", "AGC"],  # Ser
+    ["CGT", "CGC", "CGA", "CGG", "AGA", "AGG"],  # Arg
+    ["GGT", "GGC", "GGA", "GGG"],  # Gly
+    ["CCT", "CCC", "CCA", "CCG"],  # Pro
+    ["ACT", "ACC", "ACA", "ACG"],  # Thr
+    ["GTT", "GTC", "GTA", "GTG"],  # Val
+    ["CTT", "CTC", "CTA", "CTG"],  # Leu
+]
+
+# Build lookup: codon -> (group, index_in_group)
+_WATERMARK_CODON_MAP: dict[str, tuple[list[str], int]] = {}
+for _group in WATERMARK_CODON_GROUPS:
+    for _i, _codon in enumerate(_group):
+        _WATERMARK_CODON_MAP[_codon] = (_group, _i)
+
+
+def embed_watermark(sequence: str, watermark: str) -> str:
+    """Embed a binary watermark into a DNA sequence via synonymous codon substitution.
+
+    For each bit, finds the next codon in a synonymous group and replaces it
+    with group[0] (bit '0') or group[1] (bit '1'). Preserves amino acid sequence.
+    """
+    if not watermark:
+        return sequence
+
+    seq_upper = sequence.upper()
+    result = list(seq_upper)
+    bit_index = 0
+
+    for i in range(0, len(seq_upper) - 2, 3):
+        if bit_index >= len(watermark):
+            break
+        codon = seq_upper[i : i + 3]
+        entry = _WATERMARK_CODON_MAP.get(codon)
+        if entry is not None:
+            group, _ = entry
+            target = group[0] if watermark[bit_index] == "0" else group[1]
+            result[i : i + 3] = list(target)
+            bit_index += 1
+
+    return "".join(result)
+
+
+def verify_watermark(sequence: str, watermark: str) -> bool:
+    """Verify if a DNA sequence contains the given binary watermark.
+
+    Extracts bits from synonymous codon positions and compares with watermark.
+    """
+    if not watermark:
+        return True
+
+    seq_upper = sequence.upper()
+    extracted: list[str] = []
+
+    for i in range(0, len(seq_upper) - 2, 3):
+        if len(extracted) >= len(watermark):
+            break
+        codon = seq_upper[i : i + 3]
+        entry = _WATERMARK_CODON_MAP.get(codon)
+        if entry is not None:
+            _, pos = entry
+            if pos == 0:
+                extracted.append("0")
+            elif pos == 1:
+                extracted.append("1")
+            else:
+                extracted.append("?")
+
+    return "".join(extracted)[: len(watermark)] == watermark
+
+
 class SequenceScreener:
     """Screen DNA sequences against known threat patterns."""
 

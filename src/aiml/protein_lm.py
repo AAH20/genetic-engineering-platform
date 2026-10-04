@@ -79,11 +79,17 @@ class ProteinLanguageModel:
 
         Returns:
             Numpy array of shape (embedding_dim,).
+
+        Raises:
+            ValueError: If sequence is empty or contains invalid amino acids.
         """
         if not sequence:
-            return np.zeros(self.embedding_dim, dtype=np.float64)
+            raise ValueError("Sequence cannot be empty")
 
         seq = sequence.upper()
+        for aa in seq:
+            if aa not in VALID_AMINO_ACIDS:
+                raise ValueError(f"Invalid amino acid: {aa}")
         embedding = np.zeros(self.embedding_dim, dtype=np.float64)
 
         for i in range(len(seq) - self.k + 1):
@@ -110,9 +116,18 @@ class ProteinLanguageModel:
 
         Returns:
             Effect score between 0.0 (no effect) and 1.0 (high effect).
+
+        Raises:
+            ValueError: If wild_type or mutant is empty, or position is out of bounds.
         """
-        if not wild_type or not mutant:
-            return 0.5
+        if not wild_type:
+            raise ValueError("Wild-type sequence cannot be empty")
+        if not mutant:
+            raise ValueError("Mutant sequence cannot be empty")
+        if position < 0 or position >= len(wild_type):
+            raise ValueError(
+                f"position {position} is out of bounds for sequence of length {len(wild_type)}"
+            )
 
         wt = wild_type.upper()
         mut = mutant.upper()
@@ -210,9 +225,16 @@ class VariantEffectPredictor:
 
         Returns:
             Pathogenicity score between 0.0 (benign) and 1.0 (pathogenic).
+
+        Raises:
+            ValueError: If sequence is empty or position is out of bounds.
         """
         if not sequence:
-            return 0.5
+            raise ValueError("Sequence cannot be empty")
+        if position < 0 or position >= len(sequence):
+            raise ValueError(
+                f"position {position} is out of bounds for sequence of length {len(sequence)}"
+            )
 
         seq = sequence.upper()
         ref = ref.upper()

@@ -65,11 +65,11 @@ class TestEmbed:
         assert not np.array_equal(emb1, emb2)
 
     def test_embed_empty_sequence(self):
-        """Empty sequence should return zero vector."""
+        """Empty sequence should raise ValueError."""
+        import pytest
         model = ProteinLanguageModel()
-        result = model.embed("")
-        assert isinstance(result, np.ndarray)
-        assert np.all(result == 0)
+        with pytest.raises(ValueError, match="empty"):
+            model.embed("")
 
     def test_embed_short_sequence(self):
         """Sequence shorter than k should still work."""
@@ -111,10 +111,11 @@ class TestPredictVariantEffect:
         assert s1 == s2
 
     def test_variant_effect_empty_sequence(self):
-        """Empty wild-type should still return a score."""
+        """Empty wild-type should raise ValueError."""
+        import pytest
         model = ProteinLanguageModel()
-        score = model.predict_variant_effect("", "A", 0)
-        assert 0.0 <= score <= 1.0
+        with pytest.raises(ValueError, match="empty"):
+            model.predict_variant_effect("", "A", 0)
 
 
 class TestGenerateSequence:
@@ -206,10 +207,11 @@ class TestPredictPathogenicity:
         assert conservative <= disruptive
 
     def test_pathogenicity_empty_sequence(self):
-        """Empty sequence should still return a score."""
+        """Empty sequence should raise ValueError."""
+        import pytest
         predictor = VariantEffectPredictor()
-        score = predictor.predict_pathogenicity("", 0, "A", "G")
-        assert 0.0 <= score <= 1.0
+        with pytest.raises(ValueError, match="empty"):
+            predictor.predict_pathogenicity("", 0, "A", "G")
 
 
 class TestCalculateConservationScore:

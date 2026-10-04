@@ -6,6 +6,7 @@ context propagation, and intermediate result tracing.
 
 from __future__ import annotations
 
+import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -30,6 +31,9 @@ class PipelineStep:
     retry_count: int = 0
     retry_delay: float = 0.0
     retries_used: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"name": self.name, "metadata": self.metadata}
 
     def execute(self, value: Any, context: dict[str, Any] | None = None) -> Any:
         """Execute the step with retry logic, passing context if the function accepts it."""
@@ -167,6 +171,27 @@ class Pipeline:
         """Add a parallel step and return self for chaining."""
         self.steps.append(step)
         return self
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "steps": [step.to_dict() for step in self.steps],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Pipeline:
+        p = cls(name=data["name"], description=data.get("description", ""))
+        for step_data in data.get("steps", []):
+            p.add_step(PipelineStep(name=step_data["name"], func=lambda x: x, metadata=step_data.get("metadata", {})))
+        return p
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> Pipeline:
+        return cls.from_dict(json.loads(json_str))
 
     def run(self, initial_value: Any, context: dict[str, Any] | None = None) -> PipelineResult:
         """Execute all steps in order, threading output through.

@@ -247,3 +247,121 @@ class DNASynthesis:
         gc_factor = 1.0 + (gc_content - 0.5) * 0.4
 
         return base_cost * gc_factor
+
+
+# ---------------------------------------------------------------------------
+# RBS Calculator & Designer
+# ---------------------------------------------------------------------------
+
+# Anti-Shine-Dalgarno sequence on 16S rRNA (3'->5' direction)
+ANTI_SD = "AUUCCUCCACUAG"
+
+# Host-specific RBS motifs
+HOST_RBS_MOTIFS = {
+    "E.coli": "AGGAGG",
+    "B.subtilis": "AGGAGGU",
+    "S.cerevisiae": "AAAAAA",
+}
+
+
+def calculate_rbs_strength(sequence: str, start_position: int = 0) -> float:
+    """Calculate ribosome binding site strength (0-1).
+
+    Based on complementarity to 16S rRNA anti-Shine-Dalgarno sequence,
+    spacing from start codon, and AU content.
+    """
+    if not sequence:
+        return 0.0
+
+    seq = sequence.upper().replace("U", "T")
+
+    # When start_position is 0, evaluate the entire sequence as the RBS
+    if start_position == 0:
+        window = seq
+        spacing_score = 1.0  # No spacing penalty when no start codon context
+    else:
+        # Extract window around start_position (15 nt upstream to 5 nt downstream)
+        window_start = max(0, start_position - 15)
+        window_end = min(len(seq), start_position + 5)
+        window = seq[window_start:window_end]
+
+        if not window:
+            return 0.0
+
+        # Spacing score: optimal spacing is 5-13 nt upstream of start codon
+        # Find position of best SD match
+        sd_motif = "AGGAGG"
+        best_sd_pos = 0
+        best_complementarity_for_spacing = 0.0
+        for i in range(len(window) - len(sd_motif) + 1):
+            subseq = window[i:i + len(sd_motif)]
+            matches = sum(1 for a, b in zip(subseq, sd_motif) if a == b)
+            if matches / len(sd_motif) > best_complementarity_for_spacing:
+                best_complementarity_for_spacing = matches / len(sd_motif)
+                best_sd_pos = i
+
+        # Distance from start codon (start_position is the start codon position)
+        sd_end = window_start + best_sd_pos + len(sd_motif)
+        spacing = start_position - sd_end
+        if 5 <= spacing <= 13:
+            spacing_score = 1.0
+        elif spacing < 5:
+            spacing_score = max(0.0, 1.0 - (5 - spacing) * 0.2)
+        else:
+            spacing_score = max(0.0, 1.0 - (spacing - 13) * 0.1)
+
+    # Complementarity score: check for SD-like motifs
+    sd_motif = "AGGAGG"
+    best_complementarity = 0.0
+    for i in range(len(window) - len(sd_motif) + 1):
+        subseq = window[i:i + len(sd_motif)]
+        matches = sum(1 for a, b in zip(subseq, sd_motif) if a == b)
+        complementarity = matches / len(sd_motif)
+        best_complementarity = max(best_complementarity, complementarity)
+
+    # AU content score: higher AU content generally increases RBS strength
+    au_count = window.count("A") + window.count("T")
+    au_content = au_count / len(window) if window else 0.0
+    au_score = au_content  # 0-1 range
+
+    # Weighted combination
+    strength = (
+        0.5 * best_complementarity
+        + 0.3 * spacing_score
+        + 0.2 * au_score
+    )
+
+    return max(0.0, min(1.0, strength))
+
+
+def design_rbs(target_protein_seq: str, host: str = "E.coli") -> str:
+    """Design an RBS sequence for the given protein and host.
+
+    Returns 5' UTR sequence with RBS.
+    Host-specific: 'E.coli', 'B.subtilis', 'S.cerevisiae'.
+    """
+    if host not in HOST_RBS_MOTIFS:
+        raise ValueError(f"Unsupported host: {host}")
+
+    motif = HOST_RBS_MOTIFS[host]
+
+    # Spacer sequence between RBS and start codon
+    if host == "E.coli":
+        spacer = "TAATAC"  # Optimal spacing for E.coli
+    elif host == "B.subtilis":
+        spacer = "AATTCG"  # Different spacing for B.subtilis
+    else:
+        spacer = "GCTAGC"  # Different spacing for S.cerevisiae
+
+    # Upstream sequence
+    if host == "E.coli":
+        upstream = "TTAAAG"
+    elif host == "B.subtilis":
+        upstream = "CGCGAT"
+    else:
+        upstream = "TATATA"
+
+    # Construct 5' UTR: upstream + RBS motif + spacer
+    utr = upstream + motif + spacer
+
+    return utr

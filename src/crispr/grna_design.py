@@ -290,6 +290,154 @@ def design_grna_cas12a(
     }
 
 
+def design_base_editor_grna(
+    target: str,
+    editor_type: str = "CBE",
+    pam: str = "NGG",
+) -> Optional[dict]:
+    """Design a gRNA for base editing.
+
+    Finds the best gRNA for base editing based on editor type:
+    - CBE (Cytosine Base Editor): editing window positions 4-8, converts C->T
+    - ABE (Adenine Base Editor): editing window positions 4-7, converts A->G
+
+    Args:
+        target: Target DNA sequence.
+        editor_type: 'CBE' or 'ABE'.
+        pam: PAM sequence (default NGG).
+
+    Returns:
+        Dictionary with 'sequence', 'efficiency', 'pam', 'editor_type',
+        'editing_window', and 'conversion_type' keys, or None if no valid
+        gRNA with an editable base is found.
+    """
+    if not target:
+        return None
+
+    target_upper = target.upper()
+    pam_upper = pam.upper()
+    editor_upper = editor_type.upper()
+
+    if editor_upper == "CBE":
+        editable_base = "C"
+        conversion_type = "C->T"
+        window_start, window_end = 3, 8  # 0-indexed, positions 4-8
+    elif editor_upper == "ABE":
+        editable_base = "A"
+        conversion_type = "A->G"
+        window_start, window_end = 3, 7  # 0-indexed, positions 4-7
+    else:
+        return None
+
+    pam_len = len(pam_upper)
+    grna_len = 20
+
+    best_grna = None
+    best_score = -1.0
+
+    def _pam_matches(potential: str, pam_pattern: str) -> bool:
+        """Check if a PAM matches the pattern (N = wildcard)."""
+        return all(p == "N" or p == g for p, g in zip(pam_pattern, potential))
+
+    for i in range(len(target_upper) - pam_len - grna_len + 1):
+        potential_grna = target_upper[i : i + grna_len]
+        potential_pam = target_upper[i + grna_len : i + grna_len + pam_len]
+
+        if _pam_matches(potential_pam, pam_upper):
+            if validate_grna_sequence(potential_grna):
+                # Check if there's an editable base in the editing window
+                window = potential_grna[window_start:window_end]
+                if editable_base in window:
+                    score = calculate_base_editing_efficiency(
+                        potential_grna, editor_type=editor_upper
+                    )
+                    if score > best_score:
+                        best_score = score
+                        best_grna = potential_grna
+
+    if best_grna is None:
+        return None
+
+    return {
+        "sequence": best_grna,
+        "efficiency": round(best_score, 4),
+        "pam": pam_upper,
+        "editor_type": editor_upper,
+        "editing_window": (window_start + 1, window_end),
+        "conversion_type": conversion_type,
+    }
+
+
+def calculate_base_editing_efficiency(seq: str, editor_type: str = "CBE") -> float:
+    """Calculate base editing efficiency score.
+
+    Score based on:
+    - GC content (optimal 40-60%)
+    - Position of editable bases in editing window (closer to center = better)
+    - PAM proximity (editable bases closer to PAM = better)
+
+    Args:
+        seq: 20-nt gRNA sequence.
+        editor_type: 'CBE' or 'ABE'.
+
+    Returns:
+        Efficiency score between 0.0 and 1.0.
+    """
+    if not validate_grna_sequence(seq):
+        return 0.0
+
+    seq_upper = seq.upper()
+    editor_upper = editor_type.upper()
+
+    if editor_upper == "CBE":
+        editable_base = "C"
+        window_start, window_end = 3, 8
+    elif editor_upper == "ABE":
+        editable_base = "A"
+        window_start, window_end = 3, 7
+    else:
+        return 0.0
+
+    score = 0.0
+
+    # GC content score (optimal 40-60%)
+    gc = calculate_gc_content(seq_upper)
+    if 0.40 <= gc <= 0.60:
+        score += 0.3
+    elif 0.30 <= gc <= 0.70:
+        score += 0.15
+    else:
+        score += 0.05
+
+    # Editable base in window
+    window = seq_upper[window_start:window_end]
+    editable_count = window.count(editable_base)
+
+    if editable_count == 0:
+        return max(0.0, min(1.0, score))
+
+    # Score based on number of editable bases (more = better, up to a point)
+    score += min(editable_count * 0.15, 0.3)
+
+    # Position score: editable bases closer to center of window = better
+    window_center = (window_start + window_end) / 2
+    for idx, base in enumerate(window):
+        if base == editable_base:
+            abs_pos = window_start + idx
+            distance = abs(abs_pos - window_center)
+            # Closer to center = higher score
+            score += max(0.0, 0.1 - distance * 0.02)
+
+    # PAM proximity: editable bases closer to PAM (3' end) = better
+    for idx, base in enumerate(window):
+        if base == editable_base:
+            abs_pos = window_start + idx
+            pam_proximity = (len(seq_upper) - 1 - abs_pos) / len(seq_upper)
+            score += pam_proximity * 0.1
+
+    return max(0.0, min(1.0, score))
+
+
 @dataclass
 class GuideRNA:
     """Represents a designed guide RNA."""

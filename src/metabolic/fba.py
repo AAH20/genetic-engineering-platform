@@ -6,13 +6,14 @@ from scipy.optimize import linprog
 
 
 class Reaction:
-    """A metabolic reaction with stoichiometry and bounds."""
+    """A metabolic reaction with stoichiometry, bounds, and GPR rules."""
 
     def __init__(self, name, stoichiometry, lower_bound=0.0, upper_bound=1000.0):
         self.name = name
         self.stoichiometry = stoichiometry
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+        self.gpr_rule: str | None = None
 
 
 class MetabolicModel:
@@ -37,6 +38,70 @@ class MetabolicModel:
         if reaction_name not in self.reactions:
             raise ValueError(f"Reaction '{reaction_name}' not found")
         self.objective = reaction_name
+
+    def add_gpr_rule(self, reaction_name: str, rule: str) -> None:
+        """Add a Gene-Protein-Reaction rule to a reaction.
+
+        Args:
+            reaction_name: Name of the reaction.
+            rule: GPR rule string (e.g., 'gene1 and gene2', 'gene1 or gene2').
+
+        Raises:
+            ValueError: If reaction_name is not found.
+        """
+        if reaction_name not in self.reactions:
+            raise ValueError(f"Reaction '{reaction_name}' not found")
+        self.reactions[reaction_name].gpr_rule = rule
+
+    def get_reactions_by_gene(self, gene: str) -> list[str]:
+        """Get all reaction names associated with a gene via GPR rules.
+
+        Args:
+            gene: Gene identifier.
+
+        Returns:
+            List of reaction names whose GPR rules mention the gene.
+        """
+        result = []
+        for rxn_name, rxn in self.reactions.items():
+            if rxn.gpr_rule and gene in rxn.gpr_rule:
+                result.append(rxn_name)
+        return result
+
+    def knockout_gene(self, gene: str) -> None:
+        """Knock out a gene by disabling all reactions whose GPR rules mention it.
+
+        Args:
+            gene: Gene identifier.
+
+        Raises:
+            ValueError: If gene is not found in any GPR rule.
+        """
+        reactions = self.get_reactions_by_gene(gene)
+        if not reactions:
+            raise ValueError(f"Gene '{gene}' not found in any GPR rule")
+        for rxn_name in reactions:
+            self.reactions[rxn_name].lower_bound = 0.0
+            self.reactions[rxn_name].upper_bound = 0.0
+        self._solution = None
+
+    def add_exchange_reaction(
+        self, name: str, metabolite: str,
+        lower_bound: float = -10.0, upper_bound: float = 1000.0,
+    ) -> None:
+        """Add an exchange reaction for nutrient uptake or product secretion.
+
+        Args:
+            name: Reaction name (e.g., 'EX_A').
+            metabolite: Metabolite identifier.
+            lower_bound: Lower bound (negative for uptake, 0 for secretion).
+            upper_bound: Upper bound.
+
+        Raises:
+            ValueError: If metabolite is not in the model.
+        """
+        self.metabolites.add(metabolite)
+        self.add_reaction(name, {metabolite: 1}, lower_bound, upper_bound)
 
     def solve_fba(self):
         """Solve FBA using a greedy LP approximation.

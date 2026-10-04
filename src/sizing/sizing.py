@@ -70,11 +70,19 @@ def recommend_tier(
     monthly_budget: int,
     compute_cores: int,
     storage_tb: float,
+    sample_count: int = 0,
 ) -> SizingRecommendation:
     """Recommend a deployment tier based on team and resource requirements.
 
     Evaluates tiers in ascending order and returns the highest matching tier.
     """
+    if team_size <= 0:
+        raise ValueError("team_size must be positive")
+    if monthly_budget < 0:
+        raise ValueError("monthly_budget must be non-negative")
+    if sample_count < 0:
+        raise ValueError("sample_count must be non-negative")
+
     tier_order = [SizingTier.LAB, SizingTier.BIOTECH_STARTUP, SizingTier.PHARMA]
     matched = SizingTier.LAB
 
@@ -97,8 +105,17 @@ def recommend_tier(
     )
 
 
-def estimate_cost(tier: SizingTier) -> int:
+def estimate_cost(
+    tier: SizingTier,
+    team_size: int = 0,
+    monthly_budget: int = 0,
+) -> int:
     """Estimate monthly cost in USD for a given tier."""
+    if team_size < 0:
+        raise ValueError("team_size must be non-negative")
+    if monthly_budget < 0:
+        raise ValueError("monthly_budget must be non-negative")
+
     costs = {
         SizingTier.LAB: 500,
         SizingTier.BIOTECH_STARTUP: 25000,
@@ -121,6 +138,8 @@ class OnboardingGuide:
     """Step-by-step onboarding guide for each deployment tier."""
 
     def __init__(self, tier: SizingTier) -> None:
+        if not isinstance(tier, SizingTier):
+            raise ValueError(f"Invalid tier: {tier!r}")
         self.tier = tier
 
     def get_prerequisites(self) -> list[str]:

@@ -15,11 +15,12 @@ from typing import Any, Callable
 class KnowledgeGraph:
     """Simple knowledge graph for entities and relations."""
 
-    def __init__(self) -> None:
+    def __init__(self, event_bus: EventBus | None = None) -> None:
         self.entities: dict[str, dict[str, Any]] = {}
         self.relations: list[tuple[str, str, str, float]] = []
         self._type_index: dict[str, set[str]] = {}
         self._adj_index: dict[str, set[str]] = {}
+        self._event_bus = event_bus
 
     def add_entity(
         self, entity_id: str, entity_type: str, properties: dict[str, Any] | None = None
@@ -33,6 +34,12 @@ class KnowledgeGraph:
         }
         self._type_index.setdefault(entity_type, set()).add(entity_id)
         self._adj_index.setdefault(entity_id, set())
+        if self._event_bus is not None:
+            self._event_bus.publish("entity_added", {
+                "entity_id": entity_id,
+                "entity_type": entity_type,
+                "properties": properties or {},
+            })
 
     def add_relation(
         self, source: str, relation: str, target: str, weight: float = 1.0
@@ -45,6 +52,13 @@ class KnowledgeGraph:
         self.relations.append((source, relation, target, weight))
         self._adj_index.setdefault(source, set()).add(target)
         self._adj_index.setdefault(target, set()).add(source)
+        if self._event_bus is not None:
+            self._event_bus.publish("relation_added", {
+                "source": source,
+                "relation": relation,
+                "target": target,
+                "weight": weight,
+            })
 
     def query(
         self,
@@ -214,13 +228,20 @@ class EventBus:
 class DigitalTwin:
     """Digital twin for simulating biological entities."""
 
-    def __init__(self, twin_id: str) -> None:
+    def __init__(self, twin_id: str, event_bus: EventBus | None = None) -> None:
         self.twin_id = twin_id
         self._state: dict[str, Any] = {}
+        self._event_bus = event_bus
 
     def update_state(self, key: str, value: Any) -> None:
         """Update a state variable."""
         self._state[key] = value
+        if self._event_bus is not None:
+            self._event_bus.publish("state_updated", {
+                "twin_id": self.twin_id,
+                "key": key,
+                "value": value,
+            })
 
     def get_state(self, key: str | None = None) -> Any:
         """Get state for a specific key, or all state if no key given."""
@@ -245,4 +266,9 @@ class DigitalTwin:
                 self._state["temperature"] += random.uniform(-0.5, 0.5)
             if "ph" in self._state:
                 self._state["ph"] += random.uniform(-0.1, 0.1)
+        if self._event_bus is not None:
+            self._event_bus.publish("simulation_step", {
+                "twin_id": self.twin_id,
+                "steps": steps,
+            })
         return copy.deepcopy(self._state)

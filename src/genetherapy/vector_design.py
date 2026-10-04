@@ -318,3 +318,96 @@ def calculate_dose(patient_weight: float, target_tissue: str, vector_type: str) 
     vector_factor = VECTOR_DOSE_FACTORS.get(vector_type, 1.0)
 
     return patient_weight * tissue_multiplier * vector_factor
+
+
+# ---------------------------------------------------------------------------
+# Capsid stability prediction
+# ---------------------------------------------------------------------------
+# Serotype stability scores (0-1, higher = more stable capsid)
+CAPSID_STABILITY = {
+    "AAV2": 0.7,
+    "AAV5": 0.6,
+    "AAV8": 0.75,
+    "AAV9": 0.8,
+    "Lentivirus": 0.5,
+}
+
+
+def predict_capsid_stability(serotype: str) -> float:
+    """Predict capsid stability score for a given serotype.
+
+    Args:
+        serotype: Viral serotype (e.g., AAV2, AAV5, AAV8, AAV9, Lentivirus).
+
+    Returns:
+        Stability score between 0.0 and 1.0.
+    """
+    return CAPSID_STABILITY.get(serotype, 0.5)
+
+
+# ---------------------------------------------------------------------------
+# Capsid antibody binding prediction
+# ---------------------------------------------------------------------------
+# Base antibody binding probability by serotype (pre-existing immunity)
+ANTIBODY_BINDING_BASE = {
+    "AAV2": 0.6,
+    "AAV5": 0.4,
+    "AAV8": 0.35,
+    "AAV9": 0.25,
+    "Lentivirus": 0.15,
+}
+
+
+def predict_capsid_antibody_binding(serotype: str, patient_age: int) -> float:
+    """Predict probability of pre-existing antibody binding for a serotype.
+
+    Args:
+        serotype: Viral serotype.
+        patient_age: Patient age in years.
+
+    Returns:
+        Probability between 0.0 and 1.0 of pre-existing immunity.
+    """
+    base = ANTIBODY_BINDING_BASE.get(serotype, 0.4)
+
+    # Age factor: older patients have higher chance of prior exposure
+    if patient_age < 18:
+        age_factor = 0.5 + (patient_age / 18.0) * 0.5
+    else:
+        age_factor = 1.0
+
+    prob = base * age_factor
+    return min(1.0, max(0.0, prob))
+
+
+# ---------------------------------------------------------------------------
+# Immune evasion strategy suggestions
+# ---------------------------------------------------------------------------
+def suggest_immune_evasion(serotype: str, patient_age: int) -> list[str]:
+    """Suggest immune evasion strategies based on serotype and patient age.
+
+    Args:
+        serotype: Viral serotype.
+        patient_age: Patient age in years.
+
+    Returns:
+        List of recommended immune evasion strategies.
+    """
+    strategies = []
+
+    # Get immunogenicity for this serotype
+    immunogenicity = SEROTYPE_IMMUNOGENICITY.get(serotype, 0.5)
+
+    # High immunogenicity serotypes need more aggressive evasion
+    if immunogenicity >= 0.5:
+        strategies.append("immunosuppression")
+        strategies.append("capsid_switch")
+        strategies.append("empty_capsid_decoy")
+        strategies.append("plasmapheresis")
+    elif immunogenicity >= 0.3:
+        strategies.append("capsid_switch")
+        strategies.append("empty_capsid_decoy")
+    else:
+        strategies.append("empty_capsid_decoy")
+
+    return strategies

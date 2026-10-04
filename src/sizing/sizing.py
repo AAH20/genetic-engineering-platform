@@ -69,6 +69,63 @@ _TIER_PROFILES: dict[SizingTier, _TierProfile] = {
 }
 
 
+_TIER_CAPABILITIES: dict[SizingTier, dict] = {
+    SizingTier.LAB: {
+        "max_samples": 1000,
+        "max_compute_cores": 8,
+        "max_storage_tb": 1.0,
+        "max_team_size": 10,
+        "services": ["app", "postgres"],
+    },
+    SizingTier.BIOTECH_STARTUP: {
+        "max_samples": 100000,
+        "max_compute_cores": 64,
+        "max_storage_tb": 10.0,
+        "max_team_size": 50,
+        "services": ["app", "postgres", "redis", "gpu"],
+    },
+    SizingTier.PHARMA: {
+        "max_samples": 10000000,
+        "max_compute_cores": 512,
+        "max_storage_tb": 100.0,
+        "max_team_size": 500,
+        "services": ["app", "postgres", "redis", "gpu", "compliance", "audit"],
+    },
+}
+
+
+def recommend_tier_with_explanation(
+    team_size: int,
+    monthly_budget: int,
+    compute_cores: int,
+    storage_tb: float,
+    sample_count: int = 0,
+) -> dict:
+    """Recommend a tier and return a dict with explanation.
+
+    Returns dict with 'tier', 'cost', 'timeline', 'explanation' keys.
+    """
+    rec = recommend_tier(team_size, monthly_budget, compute_cores, storage_tb, sample_count)
+    explanation = (
+        f"Recommended {rec.tier.value} tier for team of {team_size} "
+        f"with budget ${monthly_budget}/month, {compute_cores} cores, "
+        f"{storage_tb}TB storage."
+    )
+    return {
+        "tier": rec.tier,
+        "cost": rec.cost,
+        "timeline": rec.timeline,
+        "explanation": explanation,
+    }
+
+
+def get_tier_capabilities(tier: SizingTier) -> dict:
+    """Return capabilities of a tier (max_samples, max_compute, etc.)."""
+    if tier not in _TIER_CAPABILITIES:
+        raise ValueError(f"Invalid tier: {tier!r}")
+    return dict(_TIER_CAPABILITIES[tier])
+
+
 def recommend_tier(
     team_size: int,
     monthly_budget: int,

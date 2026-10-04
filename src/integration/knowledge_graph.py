@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import random
+from collections import deque
 from typing import Any, Callable
 
 # =============================================================================
@@ -88,6 +89,83 @@ class KnowledgeGraph:
         if entity_id not in self.entities:
             raise ValueError(f"Entity '{entity_id}' does not exist")
         return set(self._adj_index.get(entity_id, set()))
+
+    def shortest_path(self, source: str, target: str) -> list[str]:
+        """Find shortest path between two entities using BFS.
+
+        Returns list of entity IDs in the path, or [] if no path exists.
+        """
+        if source not in self.entities:
+            raise ValueError(f"Entity '{source}' does not exist")
+        if target not in self.entities:
+            raise ValueError(f"Entity '{target}' does not exist")
+        if source == target:
+            return [source]
+
+        queue: deque[str] = deque([source])
+        visited: set[str] = {source}
+        parent: dict[str, str] = {}
+
+        while queue:
+            current = queue.popleft()
+            for neighbor in self._adj_index.get(current, set()):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    parent[neighbor] = current
+                    if neighbor == target:
+                        # Reconstruct path
+                        path = [target]
+                        while path[-1] != source:
+                            path.append(parent[path[-1]])
+                        path.reverse()
+                        return path
+                    queue.append(neighbor)
+
+        return []
+
+    def get_connected_components(self) -> list[set[str]]:
+        """Return all connected components in the graph.
+
+        Each component is a set of entity IDs.
+        """
+        if not self.entities:
+            return []
+
+        visited: set[str] = set()
+        components: list[set[str]] = []
+
+        for entity_id in self.entities:
+            if entity_id not in visited:
+                # BFS to find all entities in this component
+                component: set[str] = set()
+                queue: deque[str] = deque([entity_id])
+                visited.add(entity_id)
+                while queue:
+                    current = queue.popleft()
+                    component.add(current)
+                    for neighbor in self._adj_index.get(current, set()):
+                        if neighbor not in visited:
+                            visited.add(neighbor)
+                            queue.append(neighbor)
+                components.append(component)
+
+        return components
+
+    def get_degree_centrality(self) -> dict[str, float]:
+        """Calculate degree centrality for all entities.
+
+        Degree centrality = degree / (n - 1) where n is total entities.
+        For a single entity or empty graph, centrality is 0.0.
+        """
+        n = len(self.entities)
+        if n <= 1:
+            return {entity_id: 0.0 for entity_id in self.entities}
+
+        centrality: dict[str, float] = {}
+        for entity_id in self.entities:
+            degree = len(self._adj_index.get(entity_id, set()))
+            centrality[entity_id] = degree / (n - 1)
+        return centrality
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the graph to a dictionary."""

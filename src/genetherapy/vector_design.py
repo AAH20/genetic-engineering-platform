@@ -587,3 +587,93 @@ def calculate_immunogenicity_risk(sequence: str, serotype: str) -> float:
     )
 
     return min(1.0, max(0.0, risk))
+
+
+# ---------------------------------------------------------------------------
+# Dose optimization
+# ---------------------------------------------------------------------------
+# Estimated cell counts by target tissue
+TISSUE_CELL_COUNTS = {
+    "liver": 1e11,
+    "muscle": 1e10,
+    "brain": 1e10,
+    "lung": 5e10,
+    "heart": 5e10,
+    "eye": 1e9,
+    "spinal_cord": 5e9,
+}
+
+# Cost per vector genome (USD) by vector type
+COST_PER_VG = {
+    "AAV": 0.01,
+    "Lentivirus": 0.005,
+    "Adenovirus": 0.008,
+}
+
+
+def optimize_dose(
+    patient_weight: float,
+    target_tissue: str,
+    vector_type: str,
+    target_efficiency: float = 0.8,
+) -> dict:
+    """Optimize dose to achieve target transduction efficiency.
+
+    Args:
+        patient_weight: Patient weight in kilograms.
+        target_tissue: Target tissue for gene delivery.
+        vector_type: Type of viral vector.
+        target_efficiency: Desired transduction efficiency (0.0 to 1.0).
+
+    Returns:
+        Dict with keys: dose, volume, expected_efficiency, moi.
+
+    Raises:
+        ValueError: If patient_weight is not positive or target_efficiency
+            is outside (0, 1].
+    """
+    if patient_weight <= 0:
+        raise ValueError("Patient weight must be positive")
+    if not 0 < target_efficiency <= 1.0:
+        raise ValueError("Target efficiency must be between 0 and 1")
+
+    base_dose = calculate_dose(patient_weight, target_tissue, vector_type)
+    efficiency_factor = target_efficiency / 0.8
+    dose = base_dose * efficiency_factor
+
+    titer = calculate_titer(vector_type, 2.0, 0.9)
+    cell_count = int(TISSUE_CELL_COUNTS.get(target_tissue, 1e10))
+
+    moi = calculate_moi(dose, cell_count)
+    expected_efficiency = calculate_transduction_efficiency(moi)
+    volume = calculate_required_volume(titer, moi, cell_count)
+
+    return {
+        "dose": dose,
+        "volume": volume,
+        "expected_efficiency": expected_efficiency,
+        "moi": moi,
+    }
+
+
+def calculate_treatment_cost(dose: float, vector_type: str, num_doses: int = 1) -> float:
+    """Estimate treatment cost based on dose and vector type.
+
+    Args:
+        dose: Dose in viral genomes (vg).
+        vector_type: Type of viral vector.
+        num_doses: Number of doses to administer.
+
+    Returns:
+        Estimated cost in USD.
+
+    Raises:
+        ValueError: If dose is negative or num_doses is not positive.
+    """
+    if dose < 0:
+        raise ValueError("Dose must be non-negative")
+    if num_doses <= 0:
+        raise ValueError("Number of doses must be positive")
+
+    rate = COST_PER_VG.get(vector_type, 0.01)
+    return dose * rate * num_doses

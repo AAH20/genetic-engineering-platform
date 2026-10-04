@@ -407,6 +407,74 @@ class ComplianceChecker:
         }
 
 
+def _reverse_complement(seq: str) -> str:
+    """Return the reverse complement of a DNA sequence."""
+    comp = {"A": "T", "T": "A", "C": "G", "G": "C"}
+    return "".join(comp.get(c, c) for c in reversed(seq.upper()))
+
+
+def _kmer_jaccard(sequence: str, reference: str, k: int = 8) -> float:
+    """Calculate Jaccard similarity between k-mer sets of two sequences."""
+    if not sequence or not reference:
+        return 0.0
+    seq_upper = sequence.upper()
+    ref_upper = reference.upper()
+    if len(seq_upper) < k or len(ref_upper) < k:
+        return 0.0
+    seq_kmers = {seq_upper[i : i + k] for i in range(len(seq_upper) - k + 1)}
+    ref_kmers = {ref_upper[i : i + k] for i in range(len(ref_upper) - k + 1)}
+    intersection = seq_kmers & ref_kmers
+    union = seq_kmers | ref_kmers
+    return len(intersection) / len(union) if union else 0.0
+
+
+def check_homology_both_strands(sequence: str, reference: str) -> dict:
+    """Check homology between a sequence and a reference on both strands.
+
+    Checks the forward strand and the reverse complement of the sequence
+    against the reference using k-mer Jaccard similarity.
+
+    Returns dict with:
+        homology: float - 0.0 to 1.0 similarity score
+        is_homologous: bool - True if homology >= 0.7
+        strand: str - 'forward', 'reverse', or 'none'
+    """
+    if not sequence or not reference:
+        return {"homology": 0.0, "is_homologous": False, "strand": "none"}
+
+    seq_upper = sequence.upper()
+    ref_upper = reference.upper()
+
+    forward_score = _kmer_jaccard(seq_upper, ref_upper)
+    rc = _reverse_complement(seq_upper)
+    reverse_score = _kmer_jaccard(rc, ref_upper)
+
+    if forward_score >= reverse_score:
+        best_score = forward_score
+        best_strand = "forward"
+    else:
+        best_score = reverse_score
+        best_strand = "reverse"
+
+    is_homologous = best_score >= 0.7
+    if not is_homologous:
+        best_strand = "none"
+
+    return {
+        "homology": round(best_score, 4),
+        "is_homologous": is_homologous,
+        "strand": best_strand,
+    }
+
+
+def batch_check_homology(sequences: list[str], reference: str) -> list[dict]:
+    """Check homology for multiple sequences against a reference.
+
+    Returns a list of homology result dicts, one per input sequence.
+    """
+    return [check_homology_both_strands(seq, reference) for seq in sequences]
+
+
 def classify_bsl_level(sequence: str) -> str:
     """Classify a DNA sequence into a Biosafety Level (BSL-1 through BSL-4).
 

@@ -801,3 +801,102 @@ def design_terminator(host: str = "E.coli") -> str:
 
     terminator = stem + loop + rc_stem + tail
     return terminator
+
+
+# ---------------------------------------------------------------------------
+# Promoter Strength Prediction & Design
+# ---------------------------------------------------------------------------
+
+# Host-specific promoter consensus sequences
+HOST_PROMOTER_MOTIFS = {
+    "E.coli": {"-35": "TTGACA", "-10": "TATAAT", "up_element": "AAAAAATTTTT"},
+    "B.subtilis": {"-35": "TTGACA", "-10": "TATAAT", "up_element": "CCCCCCGGGGG"},
+    "S.cerevisiae": {"-35": "TATA", "-10": "TATA", "up_element": "TTTTTTAAAAAA"},
+}
+
+
+def predict_promoter_strength(sequence: str) -> float:
+    """Predict promoter strength (0-1) based on -35 and -10 boxes.
+
+    Based on: consensus match, spacing, UP element.
+    """
+    if not sequence:
+        return 0.0
+
+    seq = sequence.upper().replace("U", "T")
+
+    # Find best -35 box match (consensus: TTGACA)
+    best_35_score = 0.0
+    best_35_pos = -1
+    for i in range(len(seq) - 5):
+        subseq = seq[i:i + 6]
+        matches = sum(1 for a, b in zip(subseq, "TTGACA") if a == b)
+        score = matches / 6
+        if score > best_35_score:
+            best_35_score = score
+            best_35_pos = i
+
+    # Find best -10 box match (consensus: TATAAT)
+    best_10_score = 0.0
+    best_10_pos = -1
+    for i in range(len(seq) - 5):
+        subseq = seq[i:i + 6]
+        matches = sum(1 for a, b in zip(subseq, "TATAAT") if a == b)
+        score = matches / 6
+        if score > best_10_score:
+            best_10_score = score
+            best_10_pos = i
+
+    # Spacing score: optimal spacing is 17bp between -35 and -10
+    if best_35_pos >= 0 and best_10_pos >= 0:
+        spacing = best_10_pos - (best_35_pos + 6)
+        if spacing == 17:
+            spacing_score = 1.0
+        elif 15 <= spacing <= 19:
+            spacing_score = 0.8
+        elif 12 <= spacing <= 22:
+            spacing_score = 0.5
+        else:
+            spacing_score = 0.2
+    else:
+        spacing_score = 0.0
+
+    # UP element score: AT-rich region upstream of -35
+    up_score = 0.0
+    if best_35_pos > 0:
+        up_region = seq[:best_35_pos]
+        if len(up_region) >= 6:
+            at_count = up_region.count("A") + up_region.count("T")
+            up_score = at_count / len(up_region)
+
+    # Weighted combination
+    strength = (
+        0.35 * best_35_score
+        + 0.35 * best_10_score
+        + 0.20 * spacing_score
+        + 0.10 * up_score
+    )
+
+    return max(0.0, min(1.0, strength))
+
+
+def design_promoter(host: str = "E.coli") -> str:
+    """Design a promoter sequence for the given host.
+
+    Returns DNA sequence with -35 box, -10 box, and UP element.
+    """
+    if host not in HOST_PROMOTER_MOTIFS:
+        raise ValueError(f"Unsupported host: {host}")
+
+    motif = HOST_PROMOTER_MOTIFS[host]
+
+    # Construct promoter: UP element + -35 box + spacer + -10 box
+    up_element = motif["up_element"]
+    box_35 = motif["-35"]
+    box_10 = motif["-10"]
+
+    # Spacer between -35 and -10 (optimal 17bp spacing)
+    spacer = "AAAAAAAAAAAAAAAAA"  # 17 A's
+
+    promoter = up_element + box_35 + spacer + box_10
+    return promoter

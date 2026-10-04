@@ -210,6 +210,55 @@ class Pipeline:
         self.steps.append(step)
         return self
 
+    def compose(self, other: Pipeline) -> Pipeline:
+        """Compose two pipelines into one, appending other's steps.
+
+        Returns a new Pipeline with all steps from both. Does not modify
+        either original pipeline.
+        """
+        import copy
+
+        result = Pipeline(self.name, self.description)
+        result.steps = copy.deepcopy(self.steps) + copy.deepcopy(other.steps)
+        return result
+
+    def split(self, step_name: str) -> tuple[Pipeline, Pipeline]:
+        """Split pipeline at a named step.
+
+        Returns a tuple of (before, after) pipelines. The step itself is
+        excluded from both. Raises ValueError if step_name is not found.
+        """
+        import copy
+
+        idx = None
+        for i, step in enumerate(self.steps):
+            if step.name == step_name:
+                idx = i
+                break
+
+        if idx is None:
+            raise ValueError(f"Step '{step_name}' not found in pipeline")
+
+        before = Pipeline(self.name, self.description)
+        before.steps = copy.deepcopy(self.steps[:idx])
+
+        after = Pipeline(self.name, self.description)
+        after.steps = copy.deepcopy(self.steps[idx + 1:])
+
+        return before, after
+
+    def clone(self) -> Pipeline:
+        """Create a deep copy of the pipeline.
+
+        Returns a new Pipeline with deep-copied steps. Modifications to the
+        clone do not affect the original.
+        """
+        import copy
+
+        result = Pipeline(self.name, self.description)
+        result.steps = copy.deepcopy(self.steps)
+        return result
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,

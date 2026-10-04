@@ -530,6 +530,60 @@ def phase_variants_by_chromosome(
     return result
 
 
+def filter_variants_by_vaf(
+    variants: list[Variant], min_vaf: float = 0.05
+) -> list[Variant]:
+    """Filter variants by minimum VAF threshold.
+
+    Args:
+        variants: List of Variant objects to filter.
+        min_vaf: Minimum variant allele frequency (0.0-1.0).
+
+    Returns:
+        List of variants with VAF >= min_vaf.
+    """
+    return [v for v in variants if v.quality / 100.0 >= min_vaf]
+
+
+def filter_variants_by_quality(
+    variants: list[Variant], min_quality: float = 30.0
+) -> list[Variant]:
+    """Filter variants by minimum quality score.
+
+    Args:
+        variants: List of Variant objects to filter.
+        min_quality: Minimum quality score.
+
+    Returns:
+        List of variants with quality >= min_quality.
+    """
+    return [v for v in variants if v.quality >= min_quality]
+
+
+def filter_variants_by_type(
+    variants: list[Variant], variant_type: str = "SNV"
+) -> list[Variant]:
+    """Filter variants by type (SNV, INDEL, SV).
+
+    Args:
+        variants: List of Variant objects to filter.
+        variant_type: Type to filter by — 'SNV', 'INDEL', or 'SV'.
+
+    Returns:
+        List of variants matching the specified type.
+    """
+    def _classify(v: Variant) -> str:
+        ref_len = len(v.ref)
+        alt_len = len(v.alt)
+        if ref_len == 1 and alt_len == 1:
+            return "SNV"
+        if max(ref_len, alt_len) >= 50:
+            return "SV"
+        return "INDEL"
+
+    return [v for v in variants if _classify(v) == variant_type]
+
+
 def calculate_haplotype_diversity(haplotypes: dict[int, list[Variant]]) -> float:
     """Calculate haplotype diversity.
 

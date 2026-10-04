@@ -246,6 +246,45 @@ class ProteinLanguageModel:
             for v in variants
         ]
 
+    def cosine_similarity(self, seq1: str, seq2: str) -> float:
+        """Calculate cosine similarity between two sequence embeddings.
+
+        Args:
+            seq1: First amino acid sequence.
+            seq2: Second amino acid sequence.
+
+        Returns:
+            Cosine similarity in [-1, 1]. Returns 0.0 if either sequence is empty.
+        """
+        if not seq1 or not seq2:
+            return 0.0
+        emb1 = self.embed(seq1)
+        emb2 = self.embed(seq2)
+        # Embeddings are already L2-normalized by embed(), so dot product = cosine similarity
+        return float(np.dot(emb1, emb2))
+
+    def find_similar(
+        self, query: str, candidates: list[str], top_k: int = 5
+    ) -> list[tuple[str, float]]:
+        """Find top-k most similar sequences to query.
+
+        Args:
+            query: Query amino acid sequence.
+            candidates: List of candidate sequences to compare against.
+            top_k: Maximum number of results to return.
+
+        Returns:
+            List of (sequence, similarity) tuples sorted by similarity (descending).
+        """
+        if not candidates:
+            return []
+        results: list[tuple[str, float]] = []
+        for candidate in candidates:
+            sim = self.cosine_similarity(query, candidate)
+            results.append((candidate, sim))
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results[:top_k]
+
     def generate_sequence(self, length: int) -> str:
         """Generate a random protein sequence.
 

@@ -259,6 +259,131 @@ class MetabolicModel:
 
         return shadow_prices
 
+    def sample_flux_space(self, n_samples: int = 100, seed: int = 42) -> list[dict]:
+        """Sample points from the flux space using the hit-and-run algorithm.
+
+        Args:
+            n_samples: Number of flux samples to generate.
+            seed: Random seed for reproducibility.
+
+        Returns:
+            List of dicts mapping reaction name -> flux value.
+
+        Raises:
+            ValueError: If no objective is set or no feasible point exists.
+        """
+        if not self.reactions:
+            return []
+        if self.objective is None:
+            raise ValueError("No objective set")
+
+        rng = np.random.default_rng(seed)
+        rxn_names = list(self.reactions.keys())
+        n_rxns = len(rxn_names)
+
+        # Build S matrix for internal metabolites
+        met_count = {}
+        for rxn in self.reactions.values():
+            for met in rxn.stoichiometry:
+                met_count[met] = met_count.get(met, 0) + 1
+        internal_mets = [m for m in self.metabolites if met_count[m] >= 2]
+
+        if internal_mets:
+            s_matrix = np.zeros((len(internal_mets), n_rxns))
+            met_idx = {m: i for i, m in enumerate(internal_mets)}
+            for j, rxn_name in enumerate(rxn_names):
+                rxn = self.reactions[rxn_name]
+                for met, coeff in rxn.stoichiometry.items():
+                    if met in met_idx:
+                        s_matrix[met_idx[met], j] = coeff
+            b_eq = np.zeros(len(internal_mets))
+        else:
+            s_matrix = None
+            b_eq = None
+
+        bounds = [
+            (self.reactions[r].lower_bound, self.reactions[r].upper_bound)
+            for r in rxn_names
+        ]
+
+        # Find a feasible starting point
+        c = np.zeros(n_rxns)
+        result = linprog(
+            c, A_eq=s_matrix, b_eq=b_eq, bounds=bounds, method="highs"
+        )
+        if not result.success:
+            raise ValueError("Could not find feasible starting point")
+
+        current = result.x.copy()
+
+        # Compute null space of S for direction generation
+        if s_matrix is not None and s_matrix.shape[0] > 0:
+            _, _, vh = np.linalg.svd(s_matrix)
+            rank = np.linalg.matrix_rank(s_matrix)
+            null_space = vh[rank:].T
+        else:
+            null_space = np.eye(n_rxns)
+
+        samples = []
+        for _ in range(n_samples):
+            # Generate random direction in null space
+            if null_space.shape[1] > 0:
+                coeffs = rng.standard_normal(null_space.shape[1])
+                direction = null_space @ coeffs
+            else:
+                direction = np.zeros(n_rxns)
+
+            norm = np.linalg.norm(direction)
+            if norm < 1e-12:
+                samples.append(
+                    {name: float(current[i]) for i, name in enumerate(rxn_names)}
+                )
+                continue
+            direction = direction / norm
+
+            # Find feasible step range
+            t_min = -np.inf
+            t_max = np.inf
+            for i in range(n_rxns):
+                if direction[i] > 1e-12:
+                    t_max = min(t_max, (bounds[i][1] - current[i]) / direction[i])
+                    t_min = max(t_min, (bounds[i][0] - current[i]) / direction[i])
+                elif direction[i] < -1e-12:
+                    t_max = min(t_max, (bounds[i][0] - current[i]) / direction[i])
+                    t_min = max(t_min, (bounds[i][1] - current[i]) / direction[i])
+
+            if t_min >= t_max:
+                samples.append(
+                    {name: float(current[i]) for i, name in enumerate(rxn_names)}
+                )
+                continue
+
+            t = rng.uniform(t_min, t_max)
+            current = current + t * direction
+
+            samples.append(
+                {name: float(current[i]) for i, name in enumerate(rxn_names)}
+            )
+
+        return samples
+
+    def get_flux_range(self, reaction_name: str) -> dict:
+        """Get the min/max flux range for a reaction from FVA.
+
+        Args:
+            reaction_name: Name of the reaction.
+
+        Returns:
+            Dict with 'min' and 'max' keys.
+
+        Raises:
+            ValueError: If reaction_name is not found.
+        """
+        if reaction_name not in self.reactions:
+            raise ValueError(f"Reaction '{reaction_name}' not found")
+        fva_result = self.fva()
+        return fva_result[reaction_name]
+
     def fva(self, fraction_of_optimum=0.95):
         """Flux Variability Analysis.
 

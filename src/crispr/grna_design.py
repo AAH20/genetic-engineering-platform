@@ -144,6 +144,43 @@ def find_off_target_sites(
     return off_targets
 
 
+def _pam_matches_iupac(pam_pattern: str, potential: str) -> bool:
+    """Check if a PAM matches a pattern with IUPAC ambiguity codes.
+
+    IUPAC codes:
+        R = A or G (purine)
+        Y = C or T (pyrimidine)
+        S = G or C (strong)
+        W = A or T (weak)
+        K = G or T (keto)
+        M = A or C (amino)
+        B = C, G, or T (not A)
+        D = A, G, or T (not C)
+        H = A, C, or T (not G)
+        V = A, C, or G (not T)
+        N = any base
+
+    Args:
+        pam_pattern: The PAM pattern with IUPAC codes.
+        potential: The PAM sequence from the genome.
+
+    Returns:
+        True if the potential PAM matches the pattern.
+    """
+    iupac = {
+        "R": "AG", "Y": "CT", "S": "GC", "W": "AT",
+        "K": "GT", "M": "AC", "B": "CGT", "D": "AGT",
+        "H": "ACT", "V": "ACG", "N": "ACGT",
+    }
+    for p, g in zip(pam_pattern, potential):
+        if p in iupac:
+            if g not in iupac[p]:
+                return False
+        elif p != g:
+            return False
+    return True
+
+
 def build_kmer_index(genome: str, k: int = 8) -> dict[str, list[int]]:
     """Build a k-mer index for fast off-target lookup.
 
@@ -716,6 +753,40 @@ def calculate_prime_editing_efficiency(
         score += 0.05
 
     return max(0.0, min(1.0, score))
+
+
+def design_grna_batch(
+    targets: list[str],
+    pam: str = "NGG",
+    min_efficiency: float = 0.0,
+) -> list[Optional[dict]]:
+    """Design gRNAs for multiple targets in a single call.
+
+    Args:
+        targets: List of target DNA sequences.
+        pam: PAM sequence (default NGG).
+        min_efficiency: Minimum efficiency score threshold.
+
+    Returns:
+        List of design dicts (one per target, None for failed targets).
+    """
+    return [design_grna(t, pam=pam, min_efficiency=min_efficiency) for t in targets]
+
+
+def design_grna_multiple_pams(
+    target: str,
+    pams: list[str],
+) -> dict[str, Optional[dict]]:
+    """Design gRNAs for multiple PAM variants.
+
+    Args:
+        target: Target DNA sequence.
+        pams: List of PAM sequences to try.
+
+    Returns:
+        Dict mapping PAM -> design result (or None if no valid gRNA found).
+    """
+    return {pam: design_grna(target, pam=pam) for pam in pams}
 
 
 def calculate_paired_efficiency(grna1: str, grna2: str, distance: int) -> float:

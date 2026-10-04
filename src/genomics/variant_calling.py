@@ -60,7 +60,7 @@ def calculate_vaf(alt_count: int, total_count: int) -> float:
     """
     if total_count == 0:
         return 0.0
-    return alt_count / total_count
+    return max(0.0, min(1.0, alt_count / total_count))
 
 
 def call_variants(

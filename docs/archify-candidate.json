@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Genetic Engineering Platform",
+    "output": "docs/archify-macro-architecture.html",
+    "quality_profile": "showcase",
+    "locale": "en"
+  },
+  "layout": {
+    "mode": "grid",
+    "cols": 1,
+    "gapX": 100,
+    "gapY": 40
+  },
+  "components": [
+    {"id": "input", "type": "frontend", "label": "Input Layer", "sublabel": "DNA/RNA/Protein/Omics", "row": 0, "col": 0, "size": [280, 60]},
+    {"id": "crispr", "type": "backend", "label": "CRISPR Design", "sublabel": "Cas9/Cas12/Base/Prime", "row": 1, "col": 0, "size": [280, 60]},
+    {"id": "protein", "type": "backend", "label": "Protein Engineering", "sublabel": "De Novo/Structure", "row": 2, "col": 0, "size": [280, 60]},
+    {"id": "synbio", "type": "backend", "label": "Synthetic Biology", "sublabel": "Circuits/Pathways", "row": 3, "col": 0, "size": [280, 60]},
+    {"id": "genomics", "type": "backend", "label": "Computational Genomics", "sublabel": "Variants/Assembly", "row": 4, "col": 0, "size": [280, 60]},
+    {"id": "genetherapy", "type": "backend", "label": "Gene Therapy", "sublabel": "Vectors/Delivery", "row": 5, "col": 0, "size": [280, 60]},
+    {"id": "metabolic", "type": "backend", "label": "Metabolic Engineering", "sublabel": "FBA/Strain", "row": 6, "col": 0, "size": [280, 60]},
+    {"id": "singlecell", "type": "backend", "label": "Single-Cell Genomics", "sublabel": "scRNA/Spatial", "row": 7, "col": 0, "size": [280, 60]},
+    {"id": "epigenomics", "type": "backend", "label": "Epigenomics", "sublabel": "Methylation/Chromatin", "row": 8, "col": 0, "size": [280, 60]},
+    {"id": "aiml", "type": "backend", "label": "AI/ML Layer", "sublabel": "Protein LMs/VEPs/GFMs", "row": 9, "col": 0, "size": [280, 60]},
+    {"id": "integration", "type": "messagebus", "label": "Integration Layer", "sublabel": "KG/EventBus/Agents/DigitalTwin", "row": 10, "col": 0, "size": [280, 60]},
+    {"id": "biosecurity", "type": "security", "label": "Biosecurity", "sublabel": "Screening/Compliance", "row": 11, "col": 0, "size": [280, 60]},
+    {"id": "output", "type": "frontend", "label": "Output Layer", "sublabel": "Designs/Predictions", "row": 12, "col": 0, "size": [280, 60]}
+  ],
+  "boundaries": [
+    {"kind": "region", "label": "Core Processing", "wraps": ["crispr","protein","synbio","genomics","genetherapy","metabolic","singlecell","epigenomics"]},
+    {"kind": "security-group", "label": "Trust Boundary", "wraps": ["biosecurity"]}
+  ],
+  "connections": [
+    {"from": "input", "to": "crispr", "label": "Sequences"},
+    {"from": "crispr", "to": "protein", "label": ""},
+    {"from": "protein", "to": "synbio", "label": ""},
+    {"from": "synbio", "to": "genomics", "label": ""},
+    {"from": "genomics", "to": "genetherapy", "label": ""},
+    {"from": "genetherapy", "to": "metabolic", "label": ""},
+    {"from": "metabolic", "to": "singlecell", "label": ""},
+    {"from": "singlecell", "to": "epigenomics", "label": ""},
+    {"from": "epigenomics", "to": "aiml", "label": ""},
+    {"from": "aiml", "to": "integration", "label": ""},
+    {"from": "integration", "to": "biosecurity", "label": "Screen"},
+    {"from": "biosecurity", "to": "output", "label": "Verified"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "Research Coverage", "items": ["10 clusters, 100 agents, 10 domains", "Bottlenecks, NP-hard problems, SOTA, failure modes", "Hardware, cited papers, OSS projects", "Scalability, biosecurity, cost tradeoffs"]},
+    {"dot": "rose", "title": "NP-Hard Problems", "items": ["Protein folding (Unger & Moult 1993)", "Protein design (Pierce & Winfree 2002)", "Genome assembly (Medvedev 2007)", "MSA (Wang & Jiang 1994)", "Haplotype assembly (MEC)", "Metabolic pathway (MILP)", "Gene circuit design", "Phylogenetic trees", "RNA inverse folding"]},
+    {"dot": "emerald", "title": "Key OSS Projects", "items": ["Biopython, GATK, DeepVariant, BCFtools", "AlphaFold, ColabFold, ESMFold, RDKit", "CRISPResso2, Cas-OFFinder, CHOPCHOP", "COBRApy, Scanpy, Seurat, SnapATAC2", "Bismark, MACS2, ESM-2, Evo 2", "Cello, SynBioCAD, JBEI-ICE, SynBioHub"]}
+  ]
+}

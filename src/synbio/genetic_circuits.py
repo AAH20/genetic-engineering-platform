@@ -1,0 +1,249 @@
+"""Genetic circuits, pathway optimization, and DNA synthesis design."""
+
+from __future__ import annotations
+
+from typing import Any
+
+# ---------------------------------------------------------------------------
+# LogicGate
+# ---------------------------------------------------------------------------
+
+VALID_GATE_TYPES = {"AND", "OR", "NOT", "NOR"}
+
+
+class LogicGate:
+    """A single logic gate in a genetic circuit."""
+
+    def __init__(self, gate_type: str, inputs: list[str], output: str) -> None:
+        if gate_type not in VALID_GATE_TYPES:
+            raise ValueError(f"Unsupported gate type: {gate_type}")
+        self.gate_type = gate_type
+        self.inputs = list(inputs)
+        self.output = output
+
+    def evaluate(self, input_values: dict[str, bool]) -> bool:
+        """Evaluate the gate given input values."""
+        vals = [input_values[name] for name in self.inputs]
+        if self.gate_type == "AND":
+            return all(vals)
+        elif self.gate_type == "OR":
+            return any(vals)
+        elif self.gate_type == "NOT":
+            return not vals[0]
+        elif self.gate_type == "NOR":
+            return not any(vals)
+        raise ValueError(f"Unsupported gate type: {self.gate_type}")
+
+
+# ---------------------------------------------------------------------------
+# GeneticCircuit
+# ---------------------------------------------------------------------------
+
+
+class GeneticCircuit:
+    """A genetic circuit composed of logic gates."""
+
+    def __init__(self, name: str, inputs: list[str], outputs: list[str]) -> None:
+        self.name = name
+        self.inputs = list(inputs)
+        self.outputs = list(outputs)
+        self.gates: list[LogicGate] = []
+
+    def add_gate(self, gate_type: str, inputs: list[str], output: str) -> None:
+        """Add a logic gate to the circuit."""
+        if gate_type not in VALID_GATE_TYPES:
+            raise ValueError(f"Unsupported gate type: {gate_type}")
+        if gate_type == "AND" and len(inputs) != 2:
+            raise ValueError("AND gate requires 2 inputs")
+        if gate_type == "OR" and len(inputs) != 2:
+            raise ValueError("OR gate requires 2 inputs")
+        if gate_type == "NOR" and len(inputs) != 2:
+            raise ValueError("NOR gate requires 2 inputs")
+        if gate_type == "NOT" and len(inputs) != 1:
+            raise ValueError("NOT gate requires 1 input")
+        self.gates.append(LogicGate(gate_type, inputs, output))
+
+    def evaluate(self, input_values: dict[str, bool]) -> dict[str, bool]:
+        """Evaluate the circuit for given input values."""
+        # Check all circuit inputs are provided
+        for name in self.inputs:
+            if name not in input_values:
+                raise ValueError(f"Missing input: {name}")
+
+        # Evaluate gates in order, building up signal values
+        signals: dict[str, bool] = dict(input_values)
+        for gate in self.gates:
+            # Check gate inputs are available
+            for inp in gate.inputs:
+                if inp not in signals:
+                    raise ValueError(f"Missing input: {inp}")
+            signals[gate.output] = gate.evaluate(signals)
+
+        # Return only declared outputs
+        return {out: signals[out] for out in self.outputs}
+
+    def validate(self) -> bool:
+        """Check that the circuit is well-formed."""
+        if not self.gates:
+            return False
+
+        # Track available signals: declared inputs + gate outputs
+        available = set(self.inputs)
+        produced_outputs = set()
+
+        for gate in self.gates:
+            # All gate inputs must be available
+            for inp in gate.inputs:
+                if inp not in available:
+                    return False
+            available.add(gate.output)
+            produced_outputs.add(gate.output)
+
+        # At least one gate must produce a declared output
+        if not produced_outputs.intersection(set(self.outputs)):
+            return False
+
+        return True
+
+
+# ---------------------------------------------------------------------------
+# PathwayOptimizer
+# ---------------------------------------------------------------------------
+
+
+class PathwayOptimizer:
+    """Flux-based pathway optimization."""
+
+    def optimize_pathway(self, pathway: dict[str, Any]) -> dict[str, Any]:
+        """Optimize fluxes in a metabolic pathway."""
+        reactions = pathway.get("reactions", [])
+        target = pathway.get("target")
+
+        if not reactions:
+            raise ValueError("Empty pathway")
+        if target is None:
+            raise ValueError("Pathway must specify a target")
+
+        # Simple flux optimization: find the bottleneck flux
+        # and scale all fluxes to maximize target production
+        fluxes = [r["flux"] for r in reactions]
+        min_flux = min(fluxes)
+
+        # Optimal fluxes: scale to bottleneck
+        optimal_fluxes = {}
+        for r in reactions:
+            optimal_fluxes[r["id"]] = min_flux
+
+        # Max yield is limited by the bottleneck
+        max_yield = min_flux
+
+        return {
+            "optimal_fluxes": optimal_fluxes,
+            "max_yield": max_yield,
+        }
+
+    def calculate_yield(
+        self,
+        stoichiometry: dict[str, int],
+        substrate: str,
+        product: str,
+        efficiency: float = 1.0,
+    ) -> float:
+        """Calculate theoretical yield from substrate to product."""
+        if substrate not in stoichiometry or stoichiometry[substrate] == 0:
+            raise ValueError(f"Invalid stoichiometry for substrate: {substrate}")
+        if product not in stoichiometry:
+            raise ValueError(f"Invalid stoichiometry for product: {product}")
+
+        # Yield = (product moles / substrate moles) * efficiency
+        yield_value = (stoichiometry[product] / stoichiometry[substrate]) * efficiency
+        return yield_value
+
+
+# ---------------------------------------------------------------------------
+# DNASynthesis
+# ---------------------------------------------------------------------------
+
+
+class DNASynthesis:
+    """DNA synthesis design and cost estimation."""
+
+    # Standard Golden Gate overhang set (4-nt, unique, balanced GC)
+    STANDARD_OVERHANGS = [
+        "AACA", "AACC", "AACG", "AACT", "AAGC", "AAGT", "AATC", "AATT",
+        "ACAA", "ACAC", "ACAG", "ACAT", "ACCA", "ACCC", "ACCG", "ACCT",
+        "ACGA", "ACGC", "ACGG", "ACGT", "ACTA", "ACTC", "ACTG", "ACTT",
+        "AGAA", "AGAC", "AGAG", "AGAT", "AGCA", "AGCC", "AGCG", "AGCT",
+        "AGGA", "AGGC", "AGGG", "AGGT", "AGTA", "AGTC", "AGTG", "AGTT",
+        "ATAA", "ATAC", "ATAG", "ATAT", "ATCA", "ATCC", "ATCG", "ATCT",
+        "ATGA", "ATGC", "ATGG", "ATGT", "ATTA", "ATTC", "ATTG", "ATTT",
+        "CAAA", "CAAC", "CAAG", "CAAT", "CACA", "CACC", "CACG", "CACT",
+        "CAGA", "CAGC", "CAGG", "CAGT", "CATA", "CATC", "CATG", "CATT",
+        "CCAA", "CCAC", "CCAG", "CCAT", "CCCA", "CCCC", "CCCG", "CCCT",
+        "CCGA", "CCGC", "CCGG", "CCGT", "CCTA", "CCTC", "CCTG", "CCTT",
+        "CGAA", "CGAC", "CGAG", "CGAT", "CGCA", "CGCC", "CGCG", "CGCT",
+        "CGGA", "CGGC", "CGGG", "CGGT", "CGTA", "CGTC", "CGTG", "CGTT",
+        "CTAA", "CTAC", "CTAG", "CTAT", "CTCA", "CTCC", "CTCG", "CTCT",
+        "CTGA", "CTGC", "CTGG", "CTGT", "CTTA", "CTTC", "CTTG", "CTTT",
+        "GAAA", "GAAC", "GAAG", "GAAT", "GACA", "GACC", "GACG", "GACT",
+        "GAGA", "GAGC", "GAGG", "GAGT", "GATA", "GATC", "GATG", "GATT",
+        "GCAA", "GCAC", "GCAG", "GCAT", "GCCA", "GCCC", "GCCG", "GCCT",
+        "GCGA", "GCGC", "GCGG", "GCGT", "GCTA", "GCTC", "GCTG", "GCTT",
+        "GGAA", "GGAC", "GGAG", "GGAT", "GGCA", "GGCC", "GGCG", "GGCT",
+        "GGGA", "GGGC", "GGGG", "GGGT", "GGTA", "GGTC", "GGTG", "GGTT",
+        "GTAA", "GTAC", "GTAG", "GTAT", "GTCA", "GTCC", "GTCG", "GTCT",
+        "GTGA", "GTGC", "GTGG", "GTGT", "GTTA", "GTTC", "GTTG", "GTTT",
+        "TAAA", "TAAC", "TAAG", "TAAT", "TACA", "TACC", "TACG", "TACT",
+        "TAGA", "TAGC", "TAGG", "TAGT", "TATA", "TATC", "TATG", "TATT",
+        "TCAA", "TCAC", "TCAG", "TCAT", "TCCA", "TCCC", "TCCG", "TCCT",
+        "TCGA", "TCGC", "TCGG", "TCGT", "TCTA", "TCTC", "TCTG", "TCTT",
+        "TGAA", "TGAC", "TGAG", "TGAT", "TGCA", "TGCC", "TGCG", "TGCT",
+        "TGGA", "TGGC", "TGGG", "TGGT", "TGTA", "TGTC", "TGTG", "TGTT",
+        "TTAA", "TTAC", "TTAG", "TTAT", "TTCA", "TTCC", "TTCG", "TTCT",
+        "TTGA", "TTGC", "TTGG", "TTGT", "TTTA", "TTTC", "TTTG", "TTTT",
+    ]
+
+    def design_overhangs(self, parts: list[str]) -> list[str]:
+        """Design Golden Gate overhangs for a list of parts."""
+        if not parts:
+            return []
+
+        # Use a deterministic selection from standard overhangs
+        # Filter for balanced GC content (25%-75%)
+        valid_overhangs = []
+        for oh in self.STANDARD_OVERHANGS:
+            gc = (oh.count("G") + oh.count("C")) / len(oh)
+            if 0.25 <= gc <= 0.75:
+                valid_overhangs.append(oh)
+
+        # Select unique overhangs
+        selected = []
+        used = set()
+        idx = 0
+        for _ in parts:
+            oh = valid_overhangs[idx % len(valid_overhangs)]
+            while oh in used:
+                idx += 1
+                oh = valid_overhangs[idx % len(valid_overhangs)]
+            selected.append(oh)
+            used.add(oh)
+            idx += 1
+
+        return selected
+
+    def calculate_synthesis_cost(self, sequence: str) -> float:
+        """Estimate DNA synthesis cost for a sequence."""
+        if not sequence:
+            return 0.0
+
+        length = len(sequence)
+        gc_count = sequence.upper().count("G") + sequence.upper().count("C")
+        gc_content = gc_count / length if length > 0 else 0.0
+
+        # Base cost: $0.15 per bp
+        base_cost = length * 0.15
+
+        # GC content factor: high GC costs more
+        gc_factor = 1.0 + (gc_content - 0.5) * 0.4
+
+        return base_cost * gc_factor

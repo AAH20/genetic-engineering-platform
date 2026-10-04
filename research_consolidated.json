@@ -1,0 +1,172 @@
+{
+  "project": "Genetic Engineering Platform",
+  "research_date": "2026-10-04",
+  "total_clusters": 10,
+  "total_agents": 100,
+  "clusters": {
+    "CRISPR-Cas Systems": {},
+    "Protein Engineering & De Novo Design": {},
+    "Synthetic Biology & Genetic Circuits": {},
+    "Gene Therapy & Viral Vectors": {},
+    "Computational Genomics & Variant Analysis": {},
+    "Metabolic Engineering & Pathway Optimization": {
+      "Biosecurity": {
+        "topic": "Biosecurity governance, frameworks, tools, and compliance for metabolic engineering",
+        "cluster": "Cluster 6: Metabolic Engineering Biosecurity",
+        "bottlenecks": [
+          "Sequence-based biosecurity screening tools (BSS) vulnerable to AI-designed synthetic homologs with minimal sequence identity but retained function",
+          "List-based governance approaches rendered obsolete by DNA synthesis advances (1000+ bases, benchtop decentralized systems)",
+          "Fragmented US biosecurity oversight across multiple agencies causing slow policymaking and structural incapability",
+          "Rapid AI advancement in protein and nucleic acid design outpacing biosecurity framework adaptation",
+          "Decentralized benchtop DNA synthesis bypassing centralized screening infrastructure"
+        ],
+        "np_hard_problems": [
+          "Predicting protein function from sequence alone (inverse protein folding problem) — needed for next-gen BSS",
+          "Comprehensive pathogen risk assessment for novel metabolic pathways — combinatorial explosion of possible designs",
+          "Real-time screening of all global DNA synthesis orders against evolving threat models",
+          "Detecting AI-designed synthetic homologs that maintain function while minimizing sequence identity",
+          "Scaling biosecurity governance to match exponential growth in DNA synthesis capability and AI design tools"
+        ],
+        "sota_approaches": [
+          "AI-resilient BSS tools: 2 of 4 evaluated tools detect 50nt fragments without modification; upgraded versions improve performance",
+          "Protein watermarking (SynthID-based): embeds undetectable watermarks in AI-designed proteins without compromising function",
+          "Relational biosecurity: treats interactions between components as explicit design/governance objects with system-level sensing",
+          "Hybrid governance framework: Delphi-derived four-component approach (awareness, training/monitoring, agile governance, international treaties)",
+          "Test-before-deployment: BMIA requirement for formal testing mechanism with legal protection and performance measurement"
+        ],
+        "oss_projects": [
+          "Biosecurity Screening Software (BSS) tools used by nucleic acid synthesis providers (4 major tools evaluated)",
+          "BNICE (Biochemical Network Integrated Computational Explorer) — computational metabolic route discovery",
+          "Protein watermarking system based on Google SynthID — AI-designed protein identification",
+          "BSEQ (Biosecurity Evaluation Questionnaire) — BIO-ISAC hardware/software security evaluation",
+          "DeepMind SynthID — watermarking technology adapted for protein sequences",
+          "Various AIPD (AI-assisted protein design) tools — both threat vector and potential screening enhancement"
+        ],
+        "most_cited_papers": [
+          "National Academies (2018) 'Biodefense in an Age of Synthetic Biology' — four-factor risk assessment framework",
+          "Wittmann et al. (2025) 'AI-assisted protein design evading biosecurity screening software' — demonstrated BSS vulnerability",
+          "Ro et al. (2006) 'Production of the antimalarial drug precursor artemisinic acid in engineered yeast' — foundational SynBio",
+          "Keasling (2008) 'Metabolic engineering for applications in synthetic biology' — comprehensive ME review",
+          "Endy (2005) 'Foundations of engineering biology' — synthetic biology theoretical framework"
+        ],
+        "scalability_limits": [
+          "List-based governance approaches do not scale with DNA synthesis advances enabling 1000+ base oligonucleotides",
+          "Fragmented governance across multiple agencies cannot keep pace with rapid biotechnology advancement",
+          "Decentralized benchtop DNA synthesis bypasses centralized screening infrastructure entirely",
+          "AI design tools improve faster than sequence-based detection methods, creating widening capability gap",
+          "Relational biosecurity frameworks needed to address compositional workflows across distributed actors"
+        ],
+        "failure_modes": [
+          "AI-assisted protein design (AIPD) creating synthetic homologs that evade sequence-based BSS screening",
+          "Fragmented oversight missing threat classes due to authorities spread across multiple agencies",
+          "Decentralized benchtop DNA synthesis bypassing centralized screening entirely",
+          "Personnel insider threats despite background screening and access control",
+          "Supply chain vulnerabilities in laboratory hardware and software (BIO-ISAC BSEQ focus)"
+        ],
+        "biosecurity_governance": [
+          "Federal Select Agent Program (FSAP) jointly administered by CDC and USDA-APHIS under 42 CFR 73, 7 CFR 331, 9 CFR 121",
+          "Biological Weapons Convention (BWC) as international treaty framework",
+          "NIH Guidelines for recombinant/synthetic nucleic acid research with Institutional Biosafety Committee (IBC) oversight",
+          "Dual-Use Research of Concern (DURC) review through Institutional Review Entity (IRE)",
+          "UK Engineering Biology Regulators' Network (EBRN) and proposed Industrial Biotechnology Regulators' Network (IBRN)"
+        ],
+        "cost_tradeoffs": [
+          "Australia's total biosecurity funding $792.0M AUD (2023-24) rising to $811.3M (2027-28): cost recovery $379.1M, base appropriation $366.4M, STEPS $46.5M",
+          "Cost recovery charges increased 3.8% in 2026-27 per legislated indexation; new charges for live snails ($892/consignment) and vessel diagnostics ($710/vessel)",
+          "Screening costs for BSS tools vs. risk mitigation: 2 of 4 tools detect 50nt fragments without modification, others require upgrades",
+          "Compliance costs for researchers: written security plans, access control hardware, personnel screening, inventory systems, incident response",
+          "Performance-based FSAP requirements allow flexibility but require site-specific risk assessment investment"
+        ],
+        "hardware_requirements": [
+          "Access control systems: card readers, biometric scanners, PIN-based readers with door/alarm integration",
+          "Inventory tracking and LIMS platforms with chain-of-custody logging and role-based permissions",
+          "BSL containment facilities (BSL-1 through BSL-4) with biosafety cabinets, ventilation, access controls",
+          "Audit logging systems producing durable, exportable logs tied to individual credentials with defined retention periods",
+          "Physical security infrastructure: secure perimeters, controlled key/combination management, escort procedures"
+        ]
+      }
+    },
+    "Single-Cell Genomics & Spatial Transcriptomics": {},
+    "Epigenomics & Gene Regulation": {
+      "Scalability": {
+        "topic": "Epigenomics Scalability: Bottlenecks, Hardware, Cost, Biosecurity, and Computational Limits",
+        "cluster": "Epigenomics Scalability",
+        "bottlenecks": [
+          "Data volume: scMulti-ome generates 300GB–1TB per sample, creating storage and I/O bottlenecks for atlas-scale projects",
+          "Ultra-high dimensionality: scATAC-seq features (10⁵–10⁷) require prohibitive gigabyte-scale communication in distributed/federated settings",
+          "Extreme sparsity: ~95% zeros in scATAC-seq data obscures biological signals and causes high-variance local gradients in federated learning",
+          "Cross-institutional heterogeneity: technical and biological confounders cause model divergence and spurious batch-specific feature learning",
+          "Memory limitations: large matrix operations (TF-IDF, SVD, Jaccard) in tools like Signac, ArchR, and SnapATAC2 exceed RAM for million-cell datasets"
+        ],
+        "np_hard_problems": [
+          "Epigenetic network computability: modeling epigenetic interactions as Boolean networks and finding minimal programs (Kolmogorov complexity) that catalyze complete network formation — related to the minimum equivalent expression problem in Boolean networks",
+          "Combinatorial histone code: the interplay between multiple histone PTMs on canonical and variant histones generates a combinatorial explosion of proteoforms and nucleoforms — inferring the histone code is akin to learning a high-dimensional combinatorial structure",
+          "Cell-type deconvolution from mixed epigenomic samples: estimating cell-type proportions and type-specific methylation/accessibility profiles from bulk data is an underdetermined inverse problem",
+          "cis-regulatory logic inference: mapping chromatin accessibility to gene regulatory networks across millions of cells involves learning sparse high-dimensional graphical models",
+          "Multi-omics integration: joint analysis of methylation, accessibility, transcriptome, and proteome from single cells requires alignment of ultra-high-dimensional, extremely sparse, non-IID data spaces"
+        ],
+        "sota_approaches": [
+          "Methylation Screening Array (MSA): Next-generation Infinium BeadChip with ternary 5mC/5hmC detection via bisulfite-APOBEC workflow for trait-centric EWAS at population scale",
+          "FL-Sailer: Federated learning with adaptive leverage score sampling (80% dimensionality reduction) and invariant VAE for privacy-preserving multi-institutional scATAC-seq",
+          "ASAP-seq: Simultaneous profiling of chromatin accessibility, gene expression, and protein levels in single cells",
+          "Omni-ATAC: Optimized ATAC-seq protocol applicable across broad cell and tissue types with improved signal-to-noise",
+          "sci-ATAC-seq: Combinatorial cellular indexing for thousands of single cells per assay without compartmentalization"
+        ],
+        "oss_projects": [
+          "FL-Sailer (arXiv 2605.04519): First federated learning framework for scATAC-seq with adaptive leverage score sampling and invariant VAE — enables privacy-preserving multi-institutional collaboration",
+          "Pylluminator (PMID: 42272854): Python toolkit for scalable DNA methylation array analysis based on SeSAMe/ChAMP",
+          "epiomics (CRAN v1.2.0): R package for omics-wide association studies, meet-in-the-middle analysis, and quantile-based g-computation",
+          "compEpiTools (Bioconductor v1.46.0): Tools for computational epigenomics — analysis, integration, and visualization across multiple genomic regions and samples",
+          "ScriptManager (bioRxiv 2026): Java-based framework for modular, reproducible cross-assay epigenomics analysis and visualization",
+          "Torch-eCpG (PMC10028892): GPU-accelerated eQTM mapper with linear scaling and automatic CUDA detection",
+          "Nexus Epigenomics (Sweden): Commercial epigenome profiling platform with cost-effective genome-wide methylation capture",
+          "Signac/ArchR (R): scATAC-seq analysis with TF-IDF normalization, LSI, and Arrow/Parquet-backed project files for scalability"
+        ],
+        "most_cited_papers": [
+          "Mimitou et al. 'Scalable, multimodal profiling of chromatin accessibility, gene expression and protein levels in single cells.' Nat Biotechnol 2021. PMID: 34083792. (592 citations)",
+          "Grandi et al. 'Chromatin accessibility profiling by ATAC-seq.' 2022. PMID: 35478247. (658 citations)",
+          "Mulqueen et al. 'Highly scalable generation of DNA methylation profiles in single cells.' 2018. PMID: 29644997. (306 citations)",
+          "Goldberg et al. 'Ternary-code DNA methylation dynamics: A new era for scalable mapping.' Cell Genomics 2025. PMID: 40934878.",
+          "Choukrallah MA. 'Computational Epigenomics: From Fundamental Research to...' 2019. PMID: 31815403."
+        ],
+        "scalability_limits": [
+          "Single-cell epigenomic assays have yet to become comparable with bulk assays in optimization and standardization of experimental and data analysis practices",
+          "sc-epigenomic assays face high variability, low coverage per cell, limited throughput, and high costs — fundamental trade-offs between resolution and scale",
+          "Standard bisulfite workflows cannot distinguish 5mC from 5hmC without specialized (costly) sequencing methods",
+          "Federated learning communication costs scale linearly with feature dimensionality — O(d) per round is prohibitive for 10⁵–10⁷ scATAC-seq features",
+          "Cache-based acceleration has diminishing returns: 32GB cache achieves 99.1% hit rate but requires 1.5× working set memory"
+        ],
+        "failure_modes": [
+          "Communication-computation gap: standard FL algorithms (FedAvg) require O(d) communication per round — prohibitive for scATAC-seq with 10⁵–10⁷ features",
+          "Heterogeneity-sparsity gap: ~95% zeros and cross-institutional batch effects cause local stochastic gradient misalignment, model divergence, and spurious batch-specific features",
+          "Theoretical gap: no convergence guarantees for FL that simultaneously addresses ultra-high dimensionality, sparsity, and non-IID heterogeneity",
+          "Bisulfite DNA damage: sodium bisulfite treatment causes significant sample loss — critical failure when starting with picogram material in single-cell methylation",
+          "Cache eviction: high L1 cache eviction rates for frequent genomic region queries (e.g., H3K27ac) despite high memory allocation — working set exceeds cache capacity"
+        ],
+        "biosecurity_governance": [
+          "AI-for-biology capability uplift (ΔAI) framework: risk emerges from connections among data, models, agents, lab automation, synthesis access, and governance — no single component determines risk independently (Frontiers 2026)",
+          "Autonomous biological discovery systems (Isomorphic Labs, FutureHouse, Ginkgo Bioworks) compress decades of research into years, lowering barriers for both cures and weaponization (Pannu, Johns Hopkins 2026)",
+          "RAND/Helena AIxBio workshop (Jan 2026): threat scenarios include novel influenza A release, agroterrorism with engineered fungal pathogens, and state-sponsored insider attacks — governance must address multi-agent AI feedback loops exploring biological space nature has not",
+          "Evo 2 (40B parameters, 9T nucleotides) illustrates rapid genome-scale model advancement; monitoring problem shifts to long-context genomic reasoning, mobile-element interpretation, host–microbe prediction, and microbial fitness forecasting",
+          "National Academies report (2025): strongest current AI uplift is in ideation and design while experimental validation remains a major bottleneck — biosecurity governance should focus on the design-to-validation pipeline"
+        ],
+        "cost_tradeoffs": [
+          "Methylation arrays (Infinium EPIC v2, MSA) are more affordable with simpler protocols but lower resolution than sequencing; MSA adds ternary 5mC/5hmC detection at array cost",
+          "TruSeq EPIC improves genomic resolution over EPIC-array but suffers from lower precision due to limited coverage per site at comparable cost",
+          "ChIPmentation lowers cost and input requirements vs standard ChIP-seq by performing tagmentation directly on ChIP fragments",
+          "ChIP-nexus improves efficiency over ChIP-exo via intramolecular ligation but is more costly",
+          "Targeted techniques (methylation arrays, targeted bisulfite sequencing) reduce costs and increase throughput significantly vs WGBS for population studies"
+        ],
+        "hardware_requirements": [
+          "NVMe SSDs for hot data; HDDs for cold archival — SSDs provide low-latency random access for genomic region queries",
+          "Parallel file systems: Lustre, ZFS, or XFS supporting large files (>TB common for aligned reads) and parallel I/O",
+          "Network: 10+ GbE intra-hub; 100+ GbE to visualization hub for transferring large BAM/BigWig files",
+          "GPU acceleration: CUDA-enabled GPUs deliver 18× speedup for eQTM mapping (Torch-eCpG) and scale linearly with methylation loci",
+          "FPGA/NoC architectures: hardware acceleration for read alignment and pre-alignment filtering; requires high-level design synthesis tools to address expertise barrier"
+        ]
+      }
+    },
+    "AI/ML for Genomics": {},
+    "Integrated Genetic Engineering Systems": {}
+  }
+}

@@ -1,0 +1,423 @@
+{
+  "project": "Genetic Engineering Platform",
+  "research_date": "2026-10-04",
+  "total_files": 99,
+  "clusters": {
+    "CRISPR-Cas Systems": [
+      {
+        "file": "cluster1_base_editing.md",
+        "topic": "cluster1_base_editing"
+      },
+      {
+        "file": "cluster1_biosecurity.md",
+        "topic": "cluster1_biosecurity"
+      },
+      {
+        "file": "cluster1_cas12_cas13.md",
+        "topic": "cluster1_cas12_cas13"
+      },
+      {
+        "file": "cluster1_cas9_mechanisms.md",
+        "topic": "cluster1_cas9_mechanisms"
+      },
+      {
+        "file": "cluster1_delivery.md",
+        "topic": "cluster1_delivery"
+      },
+      {
+        "file": "cluster1_diagnostics.md",
+        "topic": "cluster1_diagnostics"
+      },
+      {
+        "file": "cluster1_grna_design.md",
+        "topic": "cluster1_grna_design"
+      },
+      {
+        "file": "cluster1_offtarget.md",
+        "topic": "cluster1_offtarget"
+      },
+      {
+        "file": "cluster1_oss_tools.md",
+        "topic": "cluster1_oss_tools"
+      },
+      {
+        "file": "cluster1_prime_editing.md",
+        "topic": "cluster1_prime_editing"
+      }
+    ],
+    "Protein Engineering & De Novo Design": [
+      {
+        "file": "cluster2_biosecurity.md",
+        "topic": "cluster2_biosecurity"
+      },
+      {
+        "file": "cluster2_cost_hardware.md",
+        "topic": "cluster2_cost_hardware"
+      },
+      {
+        "file": "cluster2_de_novo_design.md",
+        "topic": "cluster2_de_novo_design"
+      },
+      {
+        "file": "cluster2_directed_evolution.md",
+        "topic": "cluster2_directed_evolution"
+      },
+      {
+        "file": "cluster2_enzyme_design.md",
+        "topic": "cluster2_enzyme_design"
+      },
+      {
+        "file": "cluster2_oss_tools.md",
+        "topic": "cluster2_oss_tools"
+      },
+      {
+        "file": "cluster2_ppi.md",
+        "topic": "cluster2_ppi"
+      },
+      {
+        "file": "cluster2_protein_lm.md",
+        "topic": "cluster2_protein_lm"
+      },
+      {
+        "file": "cluster2_stability.md",
+        "topic": "cluster2_stability"
+      },
+      {
+        "file": "cluster2_structure_prediction.md",
+        "topic": "cluster2_structure_prediction"
+      }
+    ],
+    "Synthetic Biology & Genetic Circuits": [
+      {
+        "file": "cluster3_biosecurity.md",
+        "topic": "cluster3_biosecurity"
+      },
+      {
+        "file": "cluster3_biosensors.md",
+        "topic": "cluster3_biosensors"
+      },
+      {
+        "file": "cluster3_cost_hardware.md",
+        "topic": "cluster3_cost_hardware"
+      },
+      {
+        "file": "cluster3_dna_synthesis.md",
+        "topic": "cluster3_dna_synthesis"
+      },
+      {
+        "file": "cluster3_failure_modes.md",
+        "topic": "cluster3_failure_modes"
+      },
+      {
+        "file": "cluster3_genetic_circuits.md",
+        "topic": "cluster3_genetic_circuits"
+      },
+      {
+        "file": "cluster3_oss_tools.md",
+        "topic": "cluster3_oss_tools"
+      },
+      {
+        "file": "cluster3_pathway_optimization.md",
+        "topic": "cluster3_pathway_optimization"
+      },
+      {
+        "file": "cluster3_scalability.md",
+        "topic": "cluster3_scalability"
+      }
+    ],
+    "Gene Therapy & Viral Vectors": [
+      {
+        "file": "cluster4_aav_vectors.md",
+        "topic": "cluster4_aav_vectors"
+      },
+      {
+        "file": "cluster4_biosecurity.md",
+        "topic": "cluster4_biosecurity"
+      },
+      {
+        "file": "cluster4_clinical.md",
+        "topic": "cluster4_clinical"
+      },
+      {
+        "file": "cluster4_cost_hardware.md",
+        "topic": "cluster4_cost_hardware"
+      },
+      {
+        "file": "cluster4_delivery.md",
+        "topic": "cluster4_delivery"
+      },
+      {
+        "file": "cluster4_failure_modes.md",
+        "topic": "cluster4_failure_modes"
+      },
+      {
+        "file": "cluster4_immune_response.md",
+        "topic": "cluster4_immune_response"
+      },
+      {
+        "file": "cluster4_lentivirus.md",
+        "topic": "cluster4_lentivirus"
+      },
+      {
+        "file": "cluster4_oss_tools.md",
+        "topic": "cluster4_oss_tools"
+      },
+      {
+        "file": "cluster4_scalability.md",
+        "topic": "cluster4_scalability"
+      }
+    ],
+    "Computational Genomics & Variant Analysis": [
+      {
+        "file": "cluster5_biosecurity.md",
+        "topic": "cluster5_biosecurity"
+      },
+      {
+        "file": "cluster5_cost_hardware.md",
+        "topic": "cluster5_cost_hardware"
+      },
+      {
+        "file": "cluster5_failure_modes.md",
+        "topic": "cluster5_failure_modes"
+      },
+      {
+        "file": "cluster5_genome_assembly.md",
+        "topic": "cluster5_genome_assembly"
+      },
+      {
+        "file": "cluster5_haplotype.md",
+        "topic": "cluster5_haplotype"
+      },
+      {
+        "file": "cluster5_msa.md",
+        "topic": "cluster5_msa"
+      },
+      {
+        "file": "cluster5_oss_tools.md",
+        "topic": "cluster5_oss_tools"
+      },
+      {
+        "file": "cluster5_phylogenetics.md",
+        "topic": "cluster5_phylogenetics"
+      },
+      {
+        "file": "cluster5_scalability.md",
+        "topic": "cluster5_scalability"
+      },
+      {
+        "file": "cluster5_variant_calling.md",
+        "topic": "cluster5_variant_calling"
+      }
+    ],
+    "Metabolic Engineering & Pathway Optimization": [
+      {
+        "file": "cluster6_biosecurity.md",
+        "topic": "Biosecurity governance, frameworks, tools, and compliance for metabolic engineering"
+      },
+      {
+        "file": "cluster6_cost_hardware.md",
+        "topic": "cluster6_cost_hardware"
+      },
+      {
+        "file": "cluster6_failure_modes.md",
+        "topic": "cluster6_failure_modes"
+      },
+      {
+        "file": "cluster6_fba.md",
+        "topic": "cluster6_fba"
+      },
+      {
+        "file": "cluster6_gsm.md",
+        "topic": "cluster6_gsm"
+      },
+      {
+        "file": "cluster6_nphard.md",
+        "topic": "cluster6_nphard"
+      },
+      {
+        "file": "cluster6_oss_tools.md",
+        "topic": "cluster6_oss_tools"
+      },
+      {
+        "file": "cluster6_pathway_design.md",
+        "topic": "cluster6_pathway_design"
+      },
+      {
+        "file": "cluster6_scalability.md",
+        "topic": "cluster6_scalability"
+      },
+      {
+        "file": "cluster6_strain_optimization.md",
+        "topic": "cluster6_strain_optimization"
+      }
+    ],
+    "Single-Cell Genomics & Spatial Transcriptomics": [
+      {
+        "file": "cluster7_atac_seq.md",
+        "topic": "cluster7_atac_seq"
+      },
+      {
+        "file": "cluster7_biosecurity.md",
+        "topic": "cluster7_biosecurity"
+      },
+      {
+        "file": "cluster7_cost_hardware.md",
+        "topic": "cluster7_cost_hardware"
+      },
+      {
+        "file": "cluster7_failure_modes.md",
+        "topic": "cluster7_failure_modes"
+      },
+      {
+        "file": "cluster7_multiomics.md",
+        "topic": "cluster7_multiomics"
+      },
+      {
+        "file": "cluster7_oss_tools.md",
+        "topic": "cluster7_oss_tools"
+      },
+      {
+        "file": "cluster7_proteomics.md",
+        "topic": "cluster7_proteomics"
+      },
+      {
+        "file": "cluster7_scalability.md",
+        "topic": "cluster7_scalability"
+      },
+      {
+        "file": "cluster7_scrna_seq.md",
+        "topic": "cluster7_scrna_seq"
+      },
+      {
+        "file": "cluster7_spatial.md",
+        "topic": "cluster7_spatial"
+      }
+    ],
+    "Epigenomics & Gene Regulation": [
+      {
+        "file": "cluster8_3d_genome.md",
+        "topic": "cluster8_3d_genome"
+      },
+      {
+        "file": "cluster8_biosecurity.md",
+        "topic": "cluster8_biosecurity"
+      },
+      {
+        "file": "cluster8_chromatin.md",
+        "topic": "cluster8_chromatin"
+      },
+      {
+        "file": "cluster8_cost_hardware.md",
+        "topic": "cluster8_cost_hardware"
+      },
+      {
+        "file": "cluster8_dna_methylation.md",
+        "topic": "cluster8_dna_methylation"
+      },
+      {
+        "file": "cluster8_gene_regulation.md",
+        "topic": "cluster8_gene_regulation"
+      },
+      {
+        "file": "cluster8_histone.md",
+        "topic": "cluster8_histone"
+      },
+      {
+        "file": "cluster8_ncrna.md",
+        "topic": "cluster8_ncrna"
+      },
+      {
+        "file": "cluster8_oss_tools.md",
+        "topic": "cluster8_oss_tools"
+      },
+      {
+        "file": "cluster8_scalability.md",
+        "topic": "Epigenomics Scalability: Bottlenecks, Hardware, Cost, Biosecurity, and Computational Limits"
+      }
+    ],
+    "AI/ML for Genomics": [
+      {
+        "file": "cluster9_biosecurity.md",
+        "topic": "cluster9_biosecurity"
+      },
+      {
+        "file": "cluster9_cost_hardware.md",
+        "topic": "cluster9_cost_hardware"
+      },
+      {
+        "file": "cluster9_dti.md",
+        "topic": "cluster9_dti"
+      },
+      {
+        "file": "cluster9_gfm.md",
+        "topic": "cluster9_gfm"
+      },
+      {
+        "file": "cluster9_oss_tools.md",
+        "topic": "cluster9_oss_tools"
+      },
+      {
+        "file": "cluster9_protein_lm.md",
+        "topic": "cluster9_protein_lm"
+      },
+      {
+        "file": "cluster9_scalability.md",
+        "topic": "cluster9_scalability"
+      },
+      {
+        "file": "cluster9_singlecell_ml.md",
+        "topic": "cluster9_singlecell_ml"
+      },
+      {
+        "file": "cluster9_structure_ml.md",
+        "topic": "cluster9_structure_ml"
+      },
+      {
+        "file": "cluster9_variant_effect.md",
+        "topic": "cluster9_variant_effect"
+      }
+    ],
+    "Integrated Genetic Engineering Systems": [
+      {
+        "file": "cluster10_biosecurity.md",
+        "topic": "cluster10_biosecurity"
+      },
+      {
+        "file": "cluster10_cost_hardware.md",
+        "topic": "cluster10_cost_hardware"
+      },
+      {
+        "file": "cluster10_digital_twins.md",
+        "topic": "cluster10_digital_twins"
+      },
+      {
+        "file": "cluster10_event_buses.md",
+        "topic": "cluster10_event_buses"
+      },
+      {
+        "file": "cluster10_knowledge_graphs.md",
+        "topic": "cluster10_knowledge_graphs"
+      },
+      {
+        "file": "cluster10_multiagent.md",
+        "topic": "cluster10_multiagent"
+      },
+      {
+        "file": "cluster10_ontologies.md",
+        "topic": "cluster10_ontologies"
+      },
+      {
+        "file": "cluster10_oss_tools.md",
+        "topic": "cluster10_oss_tools"
+      },
+      {
+        "file": "cluster10_scalability.md",
+        "topic": "cluster10_scalability"
+      },
+      {
+        "file": "cluster10_unified_architectures.md",
+        "topic": "cluster10_unified_architectures"
+      }
+    ]
+  }
+}

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genetic Engineering Platform — Macro Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --border: #30363d;
+            --card: #161b22;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        h1 { color: var(--accent); margin-bottom: 0.5rem; font-size: 2rem; }
+        h2 { color: var(--accent); margin: 2rem 0 1rem; font-size: 1.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        .subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 1.1rem; }
+        .diagram-container {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+        }
+        .diagram-title {
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+        .mermaid { text-align: center; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin: 1rem 0; }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .card h3 { color: var(--accent); margin-bottom: 0.5rem; font-size: 1rem; }
+        .card p { color: #8b949e; font-size: 0.9rem; }
+        .badge {
+            display: inline-block;
+            background: var(--accent);
+            color: var(--bg);
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        .np-hard { background: #f85149; color: #fff; }
+        .bottleneck { background: #d29922; color: #fff; }
+        .sota { background: #3fb950; color: #fff; }
+    </style>
+</head>
+<body>
+    <h1>🧬 Genetic Engineering Platform</h1>
+    <p class="subtitle">Unified Macro Architecture — 10 Research Clusters, 100 Agents, 10 Domains</p>
+
+    <!-- System Overview -->
+    <h2>1. System Overview</h2>
+    <div class="diagram-container">
+        <div class="diagram-title">High-Level System Architecture</div>
+        <div class="mermaid">
+flowchart TB
+    subgraph Input["🔬 Input Layer"]
+        DNA[DNA/RNA Sequences]
+        Protein[Protein Structures]
+        Omics[Multi-Omics Data]
+        Literature[Scientific Literature]
+    end
+
+    subgraph Core["⚙️ Core Processing Layer"]
+        CRISPR[CRISPR Design<br/>Cas9/Cas12/Cas13<br/>Base/Prime Editing]
+        ProteinEng[Protein Engineering<br/>De Novo Design<br/>Structure Prediction]
+        SynBio[Synthetic Biology<br/>Genetic Circuits<br/>Pathway Optimization]
+        Genomics[Computational Genomics<br/>Variant Calling<br/>Assembly]
+        GeneTherapy[Gene Therapy<br/>Vector Design<br/>Delivery]
+        Metabolic[Metabolic Engineering<br/>FBA<br/>Strain Optimization]
+        SingleCell[Single-Cell Genomics<br/>scRNA-seq<br/>Spatial Transcriptomics]
+        Epigenomics[Epigenomics<br/>DNA Methylation<br/>Chromatin]
+        AIML[AI/ML Layer<br/>Protein LMs<br/>Variant Effect<br/>Drug-Target]
+    end
+
+    subgraph Integration["🔗 Integration Layer"]
+        KG[Knowledge Graph<br/>SO/GO/ChEBI Ontologies]
+        EventBus[Event Bus<br/>Apache Kafka<br/>Async Messaging]
+        MultiAgent[Multi-Agent Orchestration<br/>LangGraph/CrewAI<br/>DBTL Automation]
+        DigitalTwin[Digital Twin<br/>Virtual Cells<br/>Feedback Loops]
+    end
+
+    subgraph Security["🛡️ Biosecurity Layer"]
+        Screening[Sequence Screening<br/>IGSC Protocol]
+        Compliance[Compliance Checking<br/>DURC/PEPP]
+        Watermarking[Protein Watermarking<br/>SynthID]
+        AccessControl[Access Control<br/>BSL 1-4]
+    end
+
+    subgraph Output["📊 Output Layer"]
+        Designs[Genetic Designs]
+        Predictions[Predictions]
+        Reports[Analysis Reports]
+        Alerts[Biosecurity Alerts]
+    end
+
+    Input --> Core
+    Core --> Integration
+    Integration --> Security
+    Security --> Output
+    Output -.->|Feedback| Integration
+    Integration -.->|Optimization| Core
+        </div>
+    </div>
+
+    <!-- Data Flow -->
+    <h2>2. Data Flow Architecture</h2>
+    <div class="diagram-container">
+        <div class="diagram-title">End-to-End Data Pipeline</div>
+        <div class="mermaid">
+flowchart LR
+    A[Raw Sequences<br/>FASTQ/FASTA] --> B[Quality Control<br/>FastQC/Trimmomatic]
+    B --> C[Alignment<br/>BWA-MEM2/Minimap2]
+    C --> D[Variant Calling<br/>DeepVariant/GATK]
+    D --> E[Annotation<br/>SnpEff/VEP]
+    E --> F[Knowledge Graph<br/>Neo4j/SPARQL]
+    F --> G[ML Models<br/>ESM-2/AlphaFold]
+    G --> H[Predictions<br/>Variant Effects]
+    H --> I[Validation<br/>MAVE/Experiments]
+    I --> J[Digital Twin<br/>Virtual Cell]
+    J --> K[Design Output<br/>Genetic Constructs]
+    K -.->|New Data| A
+
+    subgraph Storage["💾 Storage"]
+        S1[(Sequence DB<br/>PostgreSQL)]
+        S2[(Graph DB<br/>Neo4j)]
+        S3[(Model Store<br/>HuggingFace)]
+    end
+
+    C -.-> S1
+    F -.-> S2
+    G -.-> S3
+        </div>
+    </div>
+
+    <!-- NP-Hard Problem Map -->
+    <h2>3. NP-Hard Problem Map</h2>
+    <div class="diagram-container">
+        <div class="diagram-title">Computational Complexity Landscape</div>
+        <div class="mermaid">
+flowchart TB
+    subgraph NPComplete["🔴 NP-Complete"]
+        P1[Protein Folding<br/>Unger & Moult 1993]
+        P2[Protein Design<br/>Pierce & Winfree 2002]
+        P3[Genome Assembly<br/>Medvedev 2007]
+        P4[Multiple Sequence Alignment<br/>Wang & Jiang 1994]
+        P5[Phylogenetic Trees<br/>NP-hard]
+    end
+
+    subraph NPHard["🟠 NP-Hard"]
+        H1[Haplotype Assembly<br/>MEC Formulation]
+        H2[Metabolic Pathway<br/>MILP]
+        H3[Gene Circuit Design<br/>Combinatorial]
+        H4[Off-Target Prediction<br/>Genome-wide]
+        H5[RNA Inverse Folding<br/>NP-hard]
+    end
+
+    subgraph Heuristic["🟡 Heuristic Solutions"]
+        U1[AlphaFold2<br/>Deep Learning]
+        U2[Rosetta<br/>Monte Carlo]
+        U3[SPAdes<br/>De Bruijn Graph]
+        U4[MAFFT<br/>Progressive Alignment]
+        U5[RAxML-NG<br/>ML Heuristics]
+    end
+
+    subgraph Approximation["🟢 Approximation Algorithms"]
+        A1[CFD Score<br/>Off-target]
+        A2[Rule Set 3<br/>gRNA Efficiency]
+        A3[COBRApy<br/>FBA]
+        A4[SHAPEIT4<br/>Phasing]
+        A5[ColabFold<br/>MMseqs2]
+    end
+
+    NPComplete --> Heuristic
+    NPHard --> Heuristic
+    Heuristic --> Approximation
+        </div>
+    </div>
+
+    <!-- Multi-Agent Coordination -->
+    <h2>4. Multi-Agent Coordination Sequence</h2>
+    <div class="diagram-container">
+        <div class="diagram-title">DBTL Cycle with Multi-Agent Orchestration</div>
+        <div class="mermaid">
+sequenceDiagram
+    participant U as User/Researcher
+    participant O as Orchestrator<br/>LangGraph
+    participant D as Design Agent
+    participant B as Build Agent
+    participant T as Test Agent
+    participant L as Learn Agent
+    participant KG as Knowledge Graph
+    participant DT as Digital Twin
+    participant BS as Biosecurity
+
+    U->>O: Submit Design Request
+    O->>BS: Screen Sequence
+    BS-->>O: Pass/Fail
+    O->>D: Design Genetic System
+    D->>KG: Query Ontologies
+    KG-->>D: SO/GO/ChEBI
+    D->>DT: Simulate in Silico
+    DT-->>D: Predictions
+    D-->>O: Design Output
+    O->>B: Build Construct
+    B-->>O: Build Complete
+    O->>T: Run Assays
+    T-->>O: Experimental Data
+    O->>L: Analyze Results
+    L->>KG: Update Knowledge
+    L->>DT: Calibrate Model
+    L-->>O: Learnings
+    O->>D: Refine Design
+    Note over D,L: Iterative DBTL Cycle
+        </div>
+    </div>
+
+    <!-- Digital Twin Feedback Loop -->
+    <h2>5. Digital Twin Feedback Loop</h2>
+    <div class="diagram-container">
+        <div class="diagram-title">Closed-Loop Optimization</div>
+        <div class="mermaid">
+flowchart TB
+    A[Design Specification] --> B[In Silico Model<br/>Virtual Cell]
+    B --> C[Predict Phenotype<br/>ML Models]
+    C --> D{Validate<br/>Prediction}
+    D -->|Pass| E[Build Construct]
+    D -->|Fail| F[Refine Model]
+    F --> B
+    E --> G[Wet Lab<br/>Experiments]
+    G --> H[Measure<br/>Omics Data]
+    H --> I[Compare<br/>Predicted vs Actual]
+    I --> J{Error<br/>Threshold?}
+    J -->|Within| K[Deploy Design]
+    J -->|Exceeds| L[Update Digital Twin]
+    L --> M[Recalibrate<br/>Parameters]
+    M --> B
+    K --> N[Monitor<br/>Long-term]
+    N -.->|Drift| L
+        </div>
+    </div>
+
+    <!-- Module Summary -->
+    <h2>6. Core Modules Summary</h2>
+    <div class="grid">
+        <div class="card">
+            <h3>🧬 CRISPR Design</h3>
+            <p>Guide RNA design, off-target prediction, efficiency scoring. Tools: CHOPCHOP, CRISPOR, Cas-OFFinder, CRISPResso2.</p>
+            <span class="badge np-hard">NP-Hard</span>
+            <span class="badge sota">SOTA: Rule Set 3</span>
+        </div>
+        <div class="card">
+            <h3>🔬 Protein Engineering</h3>
+            <p>De novo design, structure prediction, stability analysis. Tools: AlphaFold2, ESMFold, RFdiffusion, ProteinMPNN.</p>
+            <span class="badge np-hard">NP-Hard</span>
+            <span class="badge sota">SOTA: AlphaFold3</span>
+        </div>
+        <div class="card">
+            <h3>🧪 Synthetic Biology</h3>
+            <p>Genetic circuit design, pathway optimization, DNA synthesis. Tools: Cello, SynBioCAD, JBEI-ICE, SBOL.</p>
+            <span class="badge np-hard">NP-Hard</span>
+            <span class="badge sota">SOTA: Cello 2.0</span>
+        </div>
+        <div class="card">
+            <h3>💉 Gene Therapy</h3>
+            <p>Vector design, delivery optimization, immune response. Tools: AAV, Lentivirus, LNP, SEND.</p>
+            <span class="badge bottleneck">Bottleneck: AAV Capacity</span>
+            <span class="badge sota">SOTA: VERVE-101</span>
+        </div>
+        <div class="card">
+            <h3>📊 Computational Genomics</h3>
+            <p>Variant calling, genome assembly, haplotype inference. Tools: GATK, DeepVariant, BCFtools, FreeBayes.</p>
+            <span class="badge np-hard">NP-Hard</span>
+            <span class="badge sota">SOTA: DeepVariant</span>
+        </div>
+        <div class="card">
+            <h3>⚗️ Metabolic Engineering</h3>
+            <p>Flux balance analysis, pathway design, strain optimization. Tools: COBRApy, OptKnock, RetroPathRL.</p>
+            <span class="badge np-hard">NP-Hard</span>
+            <span class="badge sota">SOTA: COBRApy</span>
+        </div>
+        <div class="card">
+            <h3>🔍 Single-Cell Genomics</h3>
+            <p>scRNA-seq, spatial transcriptomics, multi-omics. Tools: Scanpy, Seurat, Cell Ranger, Squidpy.</p>
+            <span class="badge bottleneck">Bottleneck: Sparsity</span>
+            <span class="badge sota">SOTA: Seurat v5</span>
+        </div>
+        <div class="card">
+            <h3>🧬 Epigenomics</h3>
+            <p>DNA methylation, histone modifications, chromatin. Tools: Bismark, MACS2, SnapATAC2, ArchR.</p>
+            <span class="badge bottleneck">Bottleneck: Bisulfite Conversion</span>
+            <span class="badge sota">SOTA: EPInformer</span>
+        </div>
+        <div class="card">
+            <h3>🤖 AI/ML for Genomics</h3>
+            <p>Protein LMs, variant effect, drug-target. Tools: ESM-2, AlphaMissense, Evo 2, DeepChem.</p>
+            <span class="badge np-hard">NP-Hard</span>
+            <span class="badge sota">SOTA: Evo 2</span>
+        </div>
+        <div class="card">
+            <h3>🔗 Integration Layer</h3>
+            <p>Knowledge graphs, event buses, multi-agent, digital twins. Tools: Neo4j, Kafka, LangGraph, Cognee.</p>
+            <span class="badge sota">SOTA: Evo 2 + KG</span>
+        </div>
+    </div>
+
+    <!-- Research Coverage -->
+    <h2>7. Research Coverage Matrix</h2>
+    <div class="diagram-container">
+        <div class="diagram-title">10 Clusters × 10 Agents = 100 Research Topics</div>
+        <div class="mermaid">
+flowchart LR
+    subgraph C1["Cluster 1: CRISPR-Cas"]
+        C1A[Cas9 Mechanisms]
+        C1B[Cas12/Cas13]
+        C1C[Base Editing]
+        C1D[Prime Editing]
+        C1E[gRNA Design]
+        C1F[Off-Target]
+        C1G[Delivery]
+        C1H[Diagnostics]
+        C1I[Biosecurity]
+        C1J[OSS Tools]
+    end
+
+    subgraph C2["Cluster 2: Protein Engineering"]
+        C2A[De Novo Design]
+        C2B[Structure Prediction]
+        C2C[Stability]
+        C2D[Directed Evolution]
+        C2E[Protein LMs]
+        C2F[Enzyme Design]
+        C2G[PPI]
+        C2H[OSS Tools]
+        C2I[Biosecurity]
+        C2J[Cost/Hardware]
+    end
+
+    subgraph C3["Cluster 3: Synthetic Biology"]
+        C3A[Genetic Circuits]
+        C3B[Pathway Optimization]
+        C3C[DNA Synthesis]
+        C3D[Chassis]
+        C3E[Biosensors]
+        C3F[OSS Tools]
+        C3G[Biosecurity]
+        C3H[Cost/Hardware]
+        C3I[Scalability]
+        C3J[Failure Modes]
+    end
+
+    subgraph C4["Cluster 4: Gene Therapy"]
+        C4A[AAV Vectors]
+        C4B[Lentivirus]
+        C4C[Delivery]
+        C4D[Immune Response]
+        C4E[Clinical]
+        C4F[OSS Tools]
+        C4G[Biosecurity]
+        C4H[Cost/Hardware]
+        C4I[Scalability]
+        C4J[Failure Modes]
+    end
+
+    subgraph C5["Cluster 5: Computational Genomics"]
+        C5A[Variant Calling]
+        C5B[Genome Assembly]
+        C5C[Haplotype Inference]
+        C5D[MSA]
+        C5E[Phylogenetics]
+        C5F[OSS Tools]
+        C5G[Biosecurity]
+        C5H[Cost/Hardware]
+        C5I[Scalability]
+        C5J[Failure Modes]
+    end
+
+    subgraph C6["Cluster 6: Metabolic Engineering"]
+        C6A[FBA]
+        C6B[Pathway Design]
+        C6C[Strain Optimization]
+        C6D[Genome-Scale Models]
+        C6E[OSS Tools]
+        C6F[Biosecurity]
+        C6G[Cost/Hardware]
+        C6H[Scalability]
+        C6I[Failure Modes]
+        C6J[NP-Hard Problems]
+    end
+
+    subgraph C7["Cluster 7: Single-Cell Genomics"]
+        C7A[scRNA-seq]
+        C7B[Spatial Transcriptomics]
+        C7C[Multi-Omics]
+        C7D[scATAC-seq]
+        C7E[Proteomics]
+        C7F[OSS Tools]
+        C7G[Biosecurity]
+        C7H[Cost/Hardware]
+        C7I[Scalability]
+        C7J[Failure Modes]
+    end
+
+    subgraph C8["Cluster 8: Epigenomics"]
+        C8A[DNA Methylation]
+        C8B[Histone Modifications]
+        C8C[Chromatin Accessibility]
+        C8D[Gene Regulation]
+        C8E[Non-Coding RNA]
+        C8F[3D Genome]
+        C8G[OSS Tools]
+        C8H[Biosecurity]
+        C8I[Cost/Hardware]
+        C8J[Scalability]
+    end
+
+    subgraph C9["Cluster 9: AI/ML for Genomics"]
+        C9A[Protein LMs]
+        C9B[Variant Effect]
+        C9C[Drug-Target]
+        C9D[Genomic Foundation Models]
+        C9E[Single-Cell ML]
+        C9F[Structure ML]
+        C9G[OSS Tools]
+        C9H[Biosecurity]
+        C9I[Cost/Hardware]
+        C9J[Scalability]
+    end
+
+    subgraph C10["Cluster 10: Integrated Systems"]
+        C10A[Unified Architectures]
+        C10B[Knowledge Graphs]
+        C10C[Ontologies]
+        C10D[Event Buses]
+        C10E[Multi-Agent Systems]
+        C10F[Digital Twins]
+        C10G[OSS Tools]
+        C10H[Biosecurity]
+        C10I[Cost/Hardware]
+        C10J[Scalability]
+    end
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#58a6ff',
+                primaryTextColor: '#c9d1d9',
+                primaryBorderColor: '#30363d',
+                lineColor: '#8b949e',
+                background: '#0d1117',
+                mainBkg: '#161b22',
+                nodeBorder: '#30363d',
+                clusterBkg: '#161b22',
+                clusterBorder: '#30363d'
+            },
+            flowchart: { useMaxWidth: true, htmlLabels: true }
+        });
+    </script>
+</body>
+</html>

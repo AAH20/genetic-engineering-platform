@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "42a2a4fd-e7d5-44ea-afe3-281d34648836",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/aah/.hermes/hermes-agent/genetic-engineering-platform/docs/archify-candidate.json",
+  "output": "/home/aah/.hermes/hermes-agent/genetic-engineering-platform/docs/archify-macro-architecture.html",
+  "specification": {
+    "sha256": "3df60ecdbc924ad4f6ea23ffabbe8ad8fc3298fb3d6424bbc2b3593356aaba5f",
+    "bytes": 4112
+  },
+  "artifact": {
+    "sha256": "cfe9940437a057b3e1e119099065b2028af8311e3ca99a5dfdf8313abc29b95d",
+    "bytes": 766282
+  }
+}

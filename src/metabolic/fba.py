@@ -1,6 +1,9 @@
 """Flux Balance Analysis (FBA) implementation for metabolic modeling."""
 from collections import deque
 
+import numpy as np
+from scipy.optimize import linprog
+
 
 class Reaction:
     """A metabolic reaction with stoichiometry and bounds."""
@@ -62,8 +65,7 @@ class MetabolicModel:
                     s = rxn.stoichiometry.get(met, 0)
                     if s > 0:
                         supply += rxn.upper_bound * s
-                if supply > 0:
-                    max_flux = min(max_flux, supply / abs(coeff))
+                max_flux = min(max_flux, supply / abs(coeff))
 
         fluxes[self.objective] = max_flux
 
@@ -87,6 +89,94 @@ class MetabolicModel:
         if self._solution is None:
             self.solve_fba()
         return self._solution.get(reaction_name, 0.0)
+
+    def fva(self, fraction_of_optimum=0.95):
+        """Flux Variability Analysis.
+
+        Compute min/max flux for each reaction while maintaining
+        >= fraction_of_optimum * optimal objective value.
+
+        Returns dict mapping reaction name -> {'min': float, 'max': float}.
+        """
+        if not self.reactions:
+            return {}
+
+        if self.objective is None:
+            raise ValueError("No objective set")
+
+        rxn_names = list(self.reactions.keys())
+        n_rxns = len(rxn_names)
+
+        # Identify internal metabolites (appear in 2+ reactions)
+        met_count = {}
+        for rxn in self.reactions.values():
+            for met in rxn.stoichiometry:
+                met_count[met] = met_count.get(met, 0) + 1
+
+        internal_mets = [m for m in self.metabolites if met_count[m] >= 2]
+
+        # Build stoichiometry matrix for internal metabolites
+        if internal_mets:
+            s_matrix = np.zeros((len(internal_mets), n_rxns))
+            met_idx = {m: i for i, m in enumerate(internal_mets)}
+            for j, rxn_name in enumerate(rxn_names):
+                rxn = self.reactions[rxn_name]
+                for met, coeff in rxn.stoichiometry.items():
+                    if met in met_idx:
+                        s_matrix[met_idx[met], j] = coeff
+            b_eq = np.zeros(len(internal_mets))
+        else:
+            s_matrix = None
+            b_eq = None
+
+        # Bounds
+        bounds = [(self.reactions[r].lower_bound, self.reactions[r].upper_bound) for r in rxn_names]
+
+        # Solve FBA to get optimal objective value
+        c = np.zeros(n_rxns)
+        obj_idx = rxn_names.index(self.objective)
+        c[obj_idx] = -1.0
+
+        result = linprog(c, A_eq=s_matrix, b_eq=b_eq, bounds=bounds, method='highs')
+
+        if not result.success:
+            raise ValueError(f"FBA solve failed: {result.message}")
+
+        optimal_obj = -result.fun
+
+        # Constraint: objective >= fraction_of_optimum * optimal_obj
+        a_ub = np.zeros((1, n_rxns))
+        a_ub[0, obj_idx] = -1.0
+        b_ub = np.array([-fraction_of_optimum * optimal_obj])
+
+        # For each reaction, minimize and maximize its flux
+        fva_result = {}
+        for i, rxn_name in enumerate(rxn_names):
+            # Minimize v_i
+            c_min = np.zeros(n_rxns)
+            c_min[i] = 1.0
+            res_min = linprog(
+                c_min, A_ub=a_ub, b_ub=b_ub, A_eq=s_matrix,
+                b_eq=b_eq, bounds=bounds, method='highs',
+            )
+
+            # Maximize v_i
+            c_max = np.zeros(n_rxns)
+            c_max[i] = -1.0
+            res_max = linprog(
+                c_max, A_ub=a_ub, b_ub=b_ub, A_eq=s_matrix,
+                b_eq=b_eq, bounds=bounds, method='highs',
+            )
+
+            if not res_min.success or not res_max.success:
+                raise ValueError(f"FVA solve failed for {rxn_name}")
+
+            fva_result[rxn_name] = {
+                'min': float(res_min.fun),
+                'max': float(-res_max.fun),
+            }
+
+        return fva_result
 
 
 class PathwayDesigner:
@@ -181,3 +271,51 @@ class StrainOptimizer:
                     break
 
         return knockouts
+
+    def simulate_knockout(self, reaction_name):
+        """Simulate knockout of a reaction and return flux change information.
+
+        Saves current bounds, sets reaction bounds to (0, 0), re-solves FBA,
+        restores original bounds, and returns a dict with results.
+        """
+        if reaction_name not in self.model.reactions:
+            raise ValueError(f"Reaction '{reaction_name}' not found")
+
+        rxn = self.model.reactions[reaction_name]
+        original_lower = rxn.lower_bound
+        original_upper = rxn.upper_bound
+
+        # Get original flux
+        original_flux = self.model.calculate_flux(self.model.objective)
+
+        # Knock out the reaction
+        rxn.lower_bound = 0.0
+        rxn.upper_bound = 0.0
+        self.model._solution = None  # Force re-solve
+
+        # Re-solve and get knockout flux
+        knockout_flux = self.model.calculate_flux(self.model.objective)
+
+        # Restore original bounds
+        rxn.lower_bound = original_lower
+        rxn.upper_bound = original_upper
+        self.model._solution = None  # Force re-solve back
+
+        return {
+            "reaction": reaction_name,
+            "original_flux": original_flux,
+            "knockout_flux": knockout_flux,
+            "objective_change": knockout_flux - original_flux,
+        }
+
+    def compare_knockouts(self, reaction_names):
+        """Compare multiple knockouts and return results sorted by objective_change."""
+        if not reaction_names:
+            return []
+
+        results = []
+        for name in reaction_names:
+            results.append(self.simulate_knockout(name))
+
+        results.sort(key=lambda r: r["objective_change"])
+        return results

@@ -150,6 +150,31 @@ class ProteinLanguageModel:
         score = base_effect * position_weight * cysteine_factor * structure_factor
         return max(0.0, min(1.0, score))
 
+    def embed_batch(self, sequences: list[str]) -> list[np.ndarray]:
+        """Generate embeddings for a batch of protein sequences.
+
+        Args:
+            sequences: List of amino acid sequences.
+
+        Returns:
+            List of numpy arrays, one per input sequence.
+        """
+        return [self.embed(seq) for seq in sequences]
+
+    def predict_variant_effect_batch(self, variants: list[dict]) -> list[float]:
+        """Predict variant effects for a batch of variants.
+
+        Args:
+            variants: List of dicts with keys: wild_type, mutant, position.
+
+        Returns:
+            List of effect scores, one per variant.
+        """
+        return [
+            self.predict_variant_effect(v["wild_type"], v["mutant"], v["position"])
+            for v in variants
+        ]
+
     def generate_sequence(self, length: int) -> str:
         """Generate a random protein sequence.
 
@@ -229,6 +254,20 @@ class VariantEffectPredictor:
 
         score = base_score * position_factor * cysteine_factor * structure_factor * stop_factor
         return max(0.0, min(1.0, score))
+
+    def predict_pathogenicity_batch(self, variants: list[dict]) -> list[float]:
+        """Predict pathogenicity for a batch of variants.
+
+        Args:
+            variants: List of dicts with keys: sequence, position, ref, alt.
+
+        Returns:
+            List of pathogenicity scores, one per variant.
+        """
+        return [
+            self.predict_pathogenicity(v["sequence"], v["position"], v["ref"], v["alt"])
+            for v in variants
+        ]
 
     def calculate_conservation_score(
         self, sequences: list[str], position: int

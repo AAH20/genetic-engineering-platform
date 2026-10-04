@@ -1,6 +1,8 @@
 """Biosecurity screening: sequence screening, dual-use detection, compliance, and gating."""
 from __future__ import annotations
 
+import hashlib
+from datetime import datetime
 from typing import Any
 
 # Known threat sequence patterns (simplified motifs for screening)
@@ -153,6 +155,20 @@ class SequenceScreener:
             "is_homologous": homology >= 0.7,
         }
 
+    def screen_batch(self, sequences: list[str]) -> list[dict[str, Any]]:
+        """Screen a batch of sequences against known threat patterns.
+
+        Returns a list of screen_sequence results, one per input sequence.
+        """
+        return [self.screen_sequence(seq) for seq in sequences]
+
+    def calculate_risk_batch(self, sequences: list[str]) -> list[float]:
+        """Calculate risk scores for a batch of sequences.
+
+        Returns a list of risk scores, one per input sequence.
+        """
+        return [self.calculate_risk_score(seq) for seq in sequences]
+
 
 class DualUseDetector:
     """Detect potential dual-use DNA sequences."""
@@ -299,6 +315,7 @@ class BiosecurityGate:
         self.screener = SequenceScreener()
         self.dual_use_detector = DualUseDetector()
         self.compliance_checker = ComplianceChecker()
+        self._audit_log: list[dict[str, Any]] = []
 
     def evaluate(self, sequence: str, framework: str = "NIH") -> dict[str, Any]:
         """Evaluate a sequence through the biosecurity gate.
@@ -312,7 +329,7 @@ class BiosecurityGate:
             compliance_result: dict
         """
         if not sequence:
-            return {
+            result = {
                 "passed": True,
                 "risk_level": "Low",
                 "risk_score": 0.0,
@@ -320,25 +337,42 @@ class BiosecurityGate:
                 "dual_use_result": {"is_dual_use": False, "flags": []},
                 "compliance_result": {"compliant": True, "violations": []},
             }
+        else:
+            screening = self.screener.screen_sequence(sequence)
+            dual_use = self.dual_use_detector.detect_dual_use(sequence)
+            compliance = self.compliance_checker.check_compliance(sequence, framework=framework)
+            risk_score = self.screener.calculate_risk_score(sequence)
+            risk_level = self.dual_use_detector.classify_risk_level(risk_score)
 
-        screening = self.screener.screen_sequence(sequence)
-        dual_use = self.dual_use_detector.detect_dual_use(sequence)
-        compliance = self.compliance_checker.check_compliance(sequence, framework=framework)
-        risk_score = self.screener.calculate_risk_score(sequence)
-        risk_level = self.dual_use_detector.classify_risk_level(risk_score)
+            # Gate passes if: no threat matches, no dual-use flags, and compliant
+            passed = (
+                screening["is_clean"]
+                and not dual_use["is_dual_use"]
+                and compliance["compliant"]
+            )
 
-        # Gate passes if: no threat matches, no dual-use flags, and compliant
-        passed = (
-            screening["is_clean"]
-            and not dual_use["is_dual_use"]
-            and compliance["compliant"]
-        )
+            result = {
+                "passed": passed,
+                "risk_level": risk_level,
+                "risk_score": round(risk_score, 4),
+                "screening_result": screening,
+                "dual_use_result": dual_use,
+                "compliance_result": compliance,
+            }
 
-        return {
-            "passed": passed,
-            "risk_level": risk_level,
-            "risk_score": round(risk_score, 4),
-            "screening_result": screening,
-            "dual_use_result": dual_use,
-            "compliance_result": compliance,
-        }
+        self._audit_log.append({
+            "timestamp": datetime.now().isoformat(),
+            "sequence_hash": hashlib.sha256(sequence.encode()).hexdigest(),
+            "result": "passed" if result["passed"] else "failed",
+            "framework": framework,
+        })
+
+        return result
+
+    def get_audit_log(self) -> list[dict[str, Any]]:
+        """Return the audit log entries."""
+        return self._audit_log
+
+    def clear_audit_log(self) -> None:
+        """Clear all audit log entries."""
+        self._audit_log.clear()

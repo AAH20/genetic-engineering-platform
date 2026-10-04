@@ -226,6 +226,35 @@ class HaplotypeInference:
         self.variants.append(variant)
 
 
+def to_vcf(variants: list[Variant], reference_name: str = "ref") -> str:
+    """Export variants to VCF format.
+
+    Args:
+        variants: List of Variant objects to export.
+        reference_name: Name of the reference contig.
+
+    Returns:
+        VCF-formatted string.
+    """
+    if variants:
+        contig_length = max(v.pos + len(v.ref) - 1 for v in variants)
+    else:
+        contig_length = 0
+
+    lines = [
+        "##fileformat=VCFv4.2",
+        f"##contig=<ID={reference_name},length={contig_length}>",
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+    ]
+
+    for v in variants:
+        lines.append(
+            f"{v.chrom}\t{v.pos}\t.\t{v.ref}\t{v.alt}\t{int(v.quality)}\t.\t."
+        )
+
+    return "\n".join(lines) + "\n"
+
+
 def phase_variants(
     variants: list[Variant],
     reads: list[str],

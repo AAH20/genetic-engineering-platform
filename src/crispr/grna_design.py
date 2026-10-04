@@ -208,6 +208,88 @@ def design_grna(
     }
 
 
+def validate_cas12a_grna(seq: str) -> bool:
+    """Validate a Cas12a (Cpf1) gRNA sequence.
+
+    Cas12a gRNAs are 20-24 nucleotides long and contain only A, C, G, T.
+
+    Args:
+        seq: The gRNA sequence to validate.
+
+    Returns:
+        True if the sequence is valid, False otherwise.
+    """
+    if not seq:
+        return False
+    if len(seq) < 20 or len(seq) > 24:
+        return False
+    return all(c in VALID_NUCS for c in seq)
+
+
+def design_grna_cas12a(
+    target: str,
+    pam: str = "TTTV",
+    min_efficiency: float = 0.0,
+) -> Optional[dict]:
+    """Design a Cas12a (Cpf1) gRNA for a target sequence.
+
+    Cas12a uses a 5' TTTV PAM (V = A, C, or G) and a 20-24 nt guide.
+
+    Args:
+        target: Target DNA sequence.
+        pam: PAM sequence (default TTTV, V = A/C/G).
+        min_efficiency: Minimum efficiency score threshold.
+
+    Returns:
+        Dictionary with 'sequence', 'efficiency', 'off_targets', and 'pam'
+        keys, or None if no valid gRNA is found.
+    """
+    if not target:
+        return None
+
+    target_upper = target.upper()
+    pam_upper = pam.upper()
+    pam_len = len(pam_upper)
+    grna_len = 20
+
+    best_grna = None
+    best_score = -1.0
+
+    def _pam_matches_cas12a(potential: str, pam_pattern: str) -> bool:
+        """Check if a PAM matches the Cas12a pattern (V = A/C/G)."""
+        for p, g in zip(pam_pattern, potential):
+            if p == "V":
+                if g not in "ACG":
+                    return False
+            elif p == "N":
+                continue
+            elif p != g:
+                return False
+        return True
+
+    for i in range(len(target_upper) - pam_len - grna_len + 1):
+        # Cas12a PAM is 5' (upstream of the guide)
+        potential_pam = target_upper[i : i + pam_len]
+        potential_grna = target_upper[i + pam_len : i + pam_len + grna_len]
+
+        if _pam_matches_cas12a(potential_pam, pam_upper):
+            if validate_cas12a_grna(potential_grna):
+                score = calculate_efficiency_score(potential_grna)
+                if score >= min_efficiency and score > best_score:
+                    best_score = score
+                    best_grna = potential_grna
+
+    if best_grna is None:
+        return None
+
+    return {
+        "sequence": best_grna,
+        "efficiency": round(best_score, 4),
+        "off_targets": [],
+        "pam": pam_upper,
+    }
+
+
 @dataclass
 class GuideRNA:
     """Represents a designed guide RNA."""

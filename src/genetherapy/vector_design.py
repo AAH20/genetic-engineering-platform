@@ -251,6 +251,52 @@ VECTOR_DOSE_FACTORS = {
 }
 
 
+def optimize_titer(transgene_size: float, purity: float) -> dict:
+    """Find the best vector type for maximum titer.
+
+    Args:
+        transgene_size: Size of the transgene in kb.
+        purity: Preparation purity as a fraction (0.0 to 1.0).
+
+    Returns:
+        Dict with 'best_vector', 'titer', and 'all_titers' keys.
+
+    Raises:
+        ValueError: If transgene_size is negative or purity is outside [0, 1].
+    """
+    if transgene_size < 0:
+        raise ValueError("Transgene size must be non-negative")
+    if purity < 0.0 or purity > 1.0:
+        raise ValueError("Purity must be between 0.0 and 1.0")
+
+    all_titers = {
+        vt: calculate_titer(vt, transgene_size, purity)
+        for vt in BASE_TITERS
+    }
+    best_vector = max(all_titers, key=all_titers.get)
+    return {
+        "best_vector": best_vector,
+        "titer": all_titers[best_vector],
+        "all_titers": all_titers,
+    }
+
+
+def compare_vector_types(transgene_size: float, purity: float) -> dict:
+    """Compare titers across all vector types.
+
+    Args:
+        transgene_size: Size of the transgene in kb.
+        purity: Preparation purity as a fraction (0.0 to 1.0).
+
+    Returns:
+        Dict mapping vector type to titer.
+    """
+    return {
+        vt: calculate_titer(vt, transgene_size, purity)
+        for vt in BASE_TITERS
+    }
+
+
 def calculate_dose(patient_weight: float, target_tissue: str, vector_type: str) -> float:
     """Calculate gene therapy dose based on patient weight and target.
 

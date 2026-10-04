@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import random
 from typing import Any, Callable
 
@@ -73,6 +74,38 @@ class KnowledgeGraph:
         if entity_id not in self.entities:
             raise ValueError(f"Entity '{entity_id}' does not exist")
         return set(self._adj_index.get(entity_id, set()))
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the graph to a dictionary."""
+        return {
+            "entities": self.entities,
+            "relations": self.relations,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> KnowledgeGraph:
+        """Reconstruct a KnowledgeGraph from a dictionary."""
+        kg = cls()
+        kg.entities = data["entities"]
+        kg.relations = [tuple(r) for r in data["relations"]]
+        # Rebuild indexes
+        for entity_id, entity_data in kg.entities.items():
+            entity_type = entity_data["type"]
+            kg._type_index.setdefault(entity_type, set()).add(entity_id)
+            kg._adj_index.setdefault(entity_id, set())
+        for source, _rel, target, _w in kg.relations:
+            kg._adj_index.setdefault(source, set()).add(target)
+            kg._adj_index.setdefault(target, set()).add(source)
+        return kg
+
+    def to_json(self) -> str:
+        """Serialize the graph to a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> KnowledgeGraph:
+        """Reconstruct a KnowledgeGraph from a JSON string."""
+        return cls.from_dict(json.loads(json_str))
 
 
 # =============================================================================

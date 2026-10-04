@@ -27,12 +27,16 @@ class SizingRecommendation:
         recommended_cores: Suggested CPU core count.
         recommended_storage_tb: Suggested storage in terabytes.
         required_services: List of service names that should be deployed.
+        cost: Estimated monthly cost in USD.
+        timeline: Estimated onboarding timeline in days.
     """
 
     tier: SizingTier
     recommended_cores: int
     recommended_storage_tb: float
     required_services: list[str] = field(default_factory=list)
+    cost: int = 0
+    timeline: int = 0
 
 
 @dataclass
@@ -102,6 +106,8 @@ def recommend_tier(
         recommended_cores=profile.cores,
         recommended_storage_tb=profile.storage_tb,
         required_services=list(profile.services),
+        cost=estimate_cost(matched),
+        timeline=estimate_timeline(matched, team_size=team_size),
     )
 
 
@@ -124,14 +130,53 @@ def estimate_cost(
     return costs[tier]
 
 
-def estimate_timeline(tier: SizingTier) -> int:
-    """Estimate onboarding timeline in weeks for a given tier."""
-    timelines = {
-        SizingTier.LAB: 1,
-        SizingTier.BIOTECH_STARTUP: 6,
-        SizingTier.PHARMA: 16,
+def estimate_timeline(tier: SizingTier, team_size: int = 0) -> int:
+    """Estimate onboarding timeline in days for a given tier.
+
+    Larger teams can parallelize work, reducing the timeline.
+    """
+    if team_size < 0:
+        raise ValueError("team_size must be non-negative")
+
+    base_days = {
+        SizingTier.LAB: 7,
+        SizingTier.BIOTECH_STARTUP: 42,
+        SizingTier.PHARMA: 112,
     }
-    return timelines[tier]
+    return max(1, base_days[tier] - team_size)
+
+
+def compare_tiers(tier1: SizingTier, tier2: SizingTier) -> dict:
+    """Compare two tiers across cost, timeline, and capabilities.
+
+    Returns a dict with comparison results for each dimension.
+    """
+    cost1 = estimate_cost(tier1)
+    cost2 = estimate_cost(tier2)
+    timeline1 = estimate_timeline(tier1)
+    timeline2 = estimate_timeline(tier2)
+    services1 = set(_TIER_PROFILES[tier1].services)
+    services2 = set(_TIER_PROFILES[tier2].services)
+
+    return {
+        "cost": {
+            "tier1": cost1,
+            "tier2": cost2,
+            "equal": cost1 == cost2,
+            "difference": cost1 - cost2,
+        },
+        "timeline": {
+            "tier1": timeline1,
+            "tier2": timeline2,
+            "equal": timeline1 == timeline2,
+            "difference": timeline1 - timeline2,
+        },
+        "capabilities": {
+            "tier1_only": sorted(services1 - services2),
+            "tier2_only": sorted(services2 - services1),
+            "equal": services1 == services2,
+        },
+    }
 
 
 class OnboardingGuide:

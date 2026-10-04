@@ -164,6 +164,65 @@ def build_kmer_index(genome: str, k: int = 8) -> dict[str, list[int]]:
     return index
 
 
+def find_off_target_sites_both_strands(
+    grna: str,
+    genome: str,
+    max_mismatches: int = 3,
+) -> list[dict]:
+    """Find off-target sites on both forward and reverse strands.
+
+    Searches the forward strand and the reverse complement of the genome.
+    Each result includes a 'strand' key indicating which strand matched.
+
+    Args:
+        grna: 20-nt gRNA sequence.
+        genome: Genome sequence to search.
+        max_mismatches: Maximum number of mismatches allowed.
+
+    Returns:
+        List of off-target sites with 'position', 'sequence',
+        'mismatches', 'score', and 'strand' keys.
+    """
+    if not validate_grna_sequence(grna) or not genome:
+        return []
+
+    grna_upper = grna.upper()
+    genome_upper = genome.upper()
+    rc_genome = _reverse_complement(genome_upper)
+
+    off_targets: list[dict] = []
+
+    # Forward strand
+    for i in range(len(genome_upper) - 19):
+        site = genome_upper[i : i + 20]
+        mismatches = sum(1 for a, b in zip(grna_upper, site) if a != b)
+        if mismatches <= max_mismatches:
+            score = 1.0 / (1.0 + mismatches)
+            off_targets.append({
+                "position": i,
+                "sequence": site,
+                "mismatches": mismatches,
+                "score": round(score, 4),
+                "strand": "forward",
+            })
+
+    # Reverse strand
+    for i in range(len(rc_genome) - 19):
+        site = rc_genome[i : i + 20]
+        mismatches = sum(1 for a, b in zip(grna_upper, site) if a != b)
+        if mismatches <= max_mismatches:
+            score = 1.0 / (1.0 + mismatches)
+            off_targets.append({
+                "position": len(genome_upper) - i - 20,
+                "sequence": _reverse_complement(site),
+                "mismatches": mismatches,
+                "score": round(score, 4),
+                "strand": "reverse",
+            })
+
+    return off_targets
+
+
 def find_off_target_sites_indexed(
     grna: str,
     genome: str,
@@ -657,6 +716,117 @@ def calculate_prime_editing_efficiency(
         score += 0.05
 
     return max(0.0, min(1.0, score))
+
+
+def calculate_paired_efficiency(grna1: str, grna2: str, distance: int) -> float:
+    """Calculate paired gRNA efficiency score.
+
+    Score based on:
+    - Individual gRNA efficiencies (using calculate_efficiency_score)
+    - Distance between guides (optimal ~100 bp for deletions)
+    - Orientation (opposite strands preferred for nickase, same strand for deletions)
+
+    Args:
+        grna1: First 20-nt gRNA sequence.
+        grna2: Second 20-nt gRNA sequence.
+        distance: Distance between the two gRNA cut sites in base pairs.
+
+    Returns:
+        Efficiency score between 0.0 and 1.0.
+    """
+    if not validate_grna_sequence(grna1) or not validate_grna_sequence(grna2):
+        return 0.0
+
+    # Individual efficiency scores
+    eff1 = calculate_efficiency_score(grna1)
+    eff2 = calculate_efficiency_score(grna2)
+    avg_efficiency = (eff1 + eff2) / 2.0
+
+    # Distance score: optimal around 100 bp, penalize extremes
+    # Gaussian-like falloff from optimal distance of 100
+    optimal_distance = 100
+    distance_score = max(0.0, 1.0 - abs(distance - optimal_distance) / 200.0)
+
+    # Combined score: 60% individual efficiency, 40% distance
+    combined = 0.6 * avg_efficiency + 0.4 * distance_score
+
+    return max(0.0, min(1.0, combined))
+
+
+def design_paired_grna(
+    target: str,
+    pam: str = "NGG",
+    min_distance: int = 50,
+    max_distance: int = 200,
+) -> Optional[dict]:
+    """Design paired gRNAs for deletions or nickase strategies.
+
+    Finds pairs of gRNAs in the target sequence that:
+    - Have valid PAM sites
+    - Are within the specified distance range
+    - Have high combined efficiency
+
+    Args:
+        target: Target DNA sequence.
+        pam: PAM sequence (default NGG).
+        min_distance: Minimum distance between cut sites in bp.
+        max_distance: Maximum distance between cut sites in bp.
+
+    Returns:
+        Dictionary with 'grna1', 'grna2', 'distance', 'efficiency', and 'pam'
+        keys, or None if no valid pair is found.
+    """
+    if not target:
+        return None
+
+    target_upper = target.upper()
+    pam_upper = pam.upper()
+    pam_len = len(pam_upper)
+    grna_len = 20
+
+    def _pam_matches(potential: str, pam_pattern: str) -> bool:
+        """Check if a PAM matches the pattern (N = wildcard)."""
+        return all(p == "N" or p == g for p, g in zip(pam_pattern, potential))
+
+    # Find all valid gRNA sites
+    sites: list[tuple[int, str]] = []
+    for i in range(len(target_upper) - pam_len - grna_len + 1):
+        potential_grna = target_upper[i : i + grna_len]
+        potential_pam = target_upper[i + grna_len : i + grna_len + pam_len]
+        if _pam_matches(potential_pam, pam_upper):
+            if validate_grna_sequence(potential_grna):
+                sites.append((i, potential_grna))
+
+    if len(sites) < 2:
+        return None
+
+    # Find best pair within distance range
+    best_pair = None
+    best_score = -1.0
+
+    for i in range(len(sites)):
+        for j in range(i + 1, len(sites)):
+            pos1, grna1 = sites[i]
+            pos2, grna2 = sites[j]
+            distance = abs(pos2 - pos1)
+
+            if min_distance <= distance <= max_distance:
+                score = calculate_paired_efficiency(grna1, grna2, distance)
+                if score > best_score:
+                    best_score = score
+                    best_pair = (grna1, grna2, distance)
+
+    if best_pair is None:
+        return None
+
+    grna1, grna2, distance = best_pair
+    return {
+        "grna1": grna1,
+        "grna2": grna2,
+        "distance": distance,
+        "efficiency": round(best_score, 4),
+        "pam": pam_upper,
+    }
 
 
 @dataclass

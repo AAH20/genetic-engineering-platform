@@ -492,3 +492,66 @@ def phase_variants(
             hap_idx += 1
 
     return haplotypes
+
+
+def phase_variants_by_chromosome(
+    variants: list[Variant],
+    reads: list[str],
+) -> dict[str, list[Variant]]:
+    """Phase variants separately per chromosome.
+
+    Groups variants by chromosome, then phases each group independently.
+
+    Args:
+        variants: List of variants to phase.
+        reads: List of read sequences.
+
+    Returns:
+        Dictionary mapping chromosome name to list of phased variants.
+    """
+    if not variants:
+        return {}
+
+    # Group variants by chromosome
+    by_chrom: dict[str, list[Variant]] = {}
+    for v in variants:
+        by_chrom.setdefault(v.chrom, []).append(v)
+
+    # Phase each chromosome's variants independently
+    result: dict[str, list[Variant]] = {}
+    for chrom, chrom_variants in by_chrom.items():
+        haplotypes = phase_variants(chrom_variants, reads)
+        # Flatten haplotypes into a single list for this chromosome
+        phased = []
+        for hap_vars in haplotypes.values():
+            phased.extend(hap_vars)
+        result[chrom] = phased
+
+    return result
+
+
+def calculate_haplotype_diversity(haplotypes: dict[int, list[Variant]]) -> float:
+    """Calculate haplotype diversity.
+
+    Uses the formula: 1 - sum(p_i^2) where p_i is the frequency of haplotype i.
+    Frequency is based on the number of variants in each haplotype.
+
+    Args:
+        haplotypes: Dictionary mapping haplotype index to list of variants.
+
+    Returns:
+        Haplotype diversity as a float between 0.0 and 1.0.
+    """
+    if not haplotypes:
+        return 0.0
+
+    total = sum(len(vars) for vars in haplotypes.values())
+    if total == 0:
+        return 0.0
+
+    diversity = 0.0
+    for hap_vars in haplotypes.values():
+        p = len(hap_vars) / total
+        diversity += p * p
+
+    return 1.0 - diversity

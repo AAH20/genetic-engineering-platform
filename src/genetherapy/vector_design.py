@@ -466,3 +466,124 @@ def calculate_required_volume(titer: float, target_dose: float, cell_count: int)
     if titer == 0:
         raise ValueError("Titer must be non-zero")
     return target_dose * cell_count / titer
+
+
+# ---------------------------------------------------------------------------
+# Transgene sequence analysis
+# ---------------------------------------------------------------------------
+def analyze_transgene_sequence(sequence: str) -> dict:
+    """Analyze transgene sequence for problematic features.
+
+    Checks for polyA signals, cryptic splice sites, GC content extremes,
+    and ORF length.
+
+    Args:
+        sequence: DNA sequence to analyze.
+
+    Returns:
+        Dict with keys: gc_content, has_polyA, has_cryptic_splice,
+        orf_length, warnings.
+    """
+    seq = sequence.upper()
+    length = len(seq)
+
+    # GC content
+    gc_count = seq.count("G") + seq.count("C")
+    gc_content = gc_count / length if length > 0 else 0.0
+
+    # PolyA signal (canonical: AATAAA)
+    has_polya = "AATAAA" in seq
+
+    # Cryptic splice site: GT...AG with at least 10 bp between
+    has_cryptic_splice = False
+    donor_pos = seq.find("GT")
+    while donor_pos != -1:
+        acceptor_pos = seq.find("AG", donor_pos + 12)
+        if acceptor_pos != -1:
+            has_cryptic_splice = True
+            break
+        donor_pos = seq.find("GT", donor_pos + 1)
+
+    # ORF length: find longest ORF (ATG to stop codon)
+    stop_codons = {"TAA", "TAG", "TGA"}
+    orf_length = 0
+    for frame in range(3):
+        i = frame
+        while i + 3 <= length:
+            codon = seq[i : i + 3]
+            if codon == "ATG":
+                # Found start, look for stop
+                for j in range(i + 3, length - 2, 3):
+                    if seq[j : j + 3] in stop_codons:
+                        orf_length = max(orf_length, j + 3 - i)
+                        break
+            i += 3
+
+    # Warnings
+    warnings = []
+    if gc_content > 0.7:
+        warnings.append("High GC content may cause secondary structure issues")
+    elif gc_content < 0.3:
+        warnings.append("Low GC content may reduce expression efficiency")
+    if has_polya:
+        warnings.append("PolyA signal detected - may cause premature termination")
+    if has_cryptic_splice:
+        warnings.append("Cryptic splice site detected - may cause aberrant splicing")
+
+    return {
+        "gc_content": gc_content,
+        "has_polyA": has_polya,
+        "has_cryptic_splice": has_cryptic_splice,
+        "orf_length": orf_length,
+        "warnings": warnings,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Immunogenicity risk calculation
+# ---------------------------------------------------------------------------
+def calculate_immunogenicity_risk(sequence: str, serotype: str) -> float:
+    """Estimate immunogenicity risk based on sequence features and serotype.
+
+    Based on CpG content, ORF length, and serotype immunogenicity.
+
+    Args:
+        sequence: DNA sequence of the transgene.
+        serotype: Viral serotype (e.g., AAV2, AAV9).
+
+    Returns:
+        Risk score between 0.0 and 1.0.
+    """
+    seq = sequence.upper()
+    length = len(seq)
+
+    # CpG content using observed/expected ratio
+    c_count = seq.count("C")
+    g_count = seq.count("G")
+    cpg_count = seq.count("CG")
+
+    if c_count > 0 and g_count > 0 and length > 0:
+        expected_cpg = (c_count * g_count) / length
+        cpg_ratio = cpg_count / expected_cpg if expected_cpg > 0 else 0.0
+    else:
+        cpg_ratio = 0.0
+
+    # Normalize: ratio of 2.0+ is considered very high
+    cpg_factor = min(1.0, cpg_ratio / 2.0)
+
+    # ORF length factor (longer ORFs = more immunogenic potential)
+    analysis = analyze_transgene_sequence(seq)
+    orf_length = analysis["orf_length"]
+    orf_factor = min(1.0, orf_length / 1000.0) if orf_length > 0 else 0.0
+
+    # Serotype immunogenicity (0-1)
+    serotype_immuno = SEROTYPE_IMMUNOGENICITY.get(serotype, 0.5)
+
+    # Weighted combination
+    risk = (
+        0.5 * cpg_factor
+        + 0.2 * orf_factor
+        + 0.3 * serotype_immuno
+    )
+
+    return min(1.0, max(0.0, risk))

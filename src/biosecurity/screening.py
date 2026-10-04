@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import datetime
 from typing import Any
 
@@ -16,6 +17,30 @@ THREAT_PATTERNS: dict[str, str] = {
     "shiga_toxin": "GAGCTGCTGGACTTCGCTATCGAGCT",
     "pertussis_toxin": "ATCGAGCTGCTGGACTTCGCTATCGAG",
 }
+
+
+def load_custom_patterns(patterns: dict[str, str]) -> None:
+    """Load custom threat patterns into the global THREAT_PATTERNS dict."""
+    THREAT_PATTERNS.update(patterns)
+
+
+def save_patterns_to_file(filepath: str) -> None:
+    """Save current threat patterns to a JSON file."""
+    with open(filepath, "w") as f:
+        json.dump(THREAT_PATTERNS, f, indent=2)
+
+
+def load_patterns_from_file(filepath: str) -> None:
+    """Load threat patterns from a JSON file."""
+    with open(filepath) as f:
+        patterns = json.load(f)
+    THREAT_PATTERNS.update(patterns)
+
+
+def get_pattern_count() -> int:
+    """Return the number of threat patterns currently loaded."""
+    return len(THREAT_PATTERNS)
+
 
 # Dual-use concern patterns
 DUAL_USE_PATTERNS: dict[str, str] = {

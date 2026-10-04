@@ -236,6 +236,28 @@ class KnowledgeGraph:
 
         return {"nodes": nodes, "edges": edges}
 
+    def annotate_with_ontology(
+        self, entity_id: str, ontology: Ontology, term_id: str
+    ) -> None:
+        """Annotate an entity with an ontology term."""
+        if entity_id not in self.entities:
+            raise ValueError(f"Entity '{entity_id}' does not exist")
+        self.entities[entity_id]["properties"].setdefault("ontology_term", []).append(term_id)
+
+    def get_ontology_annotations(self, entity_id: str) -> list[str]:
+        """Get all ontology term IDs for an entity."""
+        if entity_id not in self.entities:
+            return []
+        return list(self.entities[entity_id]["properties"].get("ontology_term", []))
+
+    def query_by_ontology(self, term_id: str) -> dict[str, dict]:
+        """Return all entities annotated with a given ontology term."""
+        results: dict[str, dict] = {}
+        for entity_id, entity_data in self.entities.items():
+            if term_id in entity_data["properties"].get("ontology_term", []):
+                results[entity_id] = copy.deepcopy(entity_data)
+        return results
+
 
 # =============================================================================
 # Ontology

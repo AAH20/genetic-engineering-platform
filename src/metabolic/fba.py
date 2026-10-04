@@ -155,6 +155,110 @@ class MetabolicModel:
             self.solve_fba()
         return self._solution.get(reaction_name, 0.0)
 
+    def robustness_analysis(self, reaction_name: str, fold_change: float = 0.5) -> dict:
+        """Analyze robustness of objective to changes in reaction bounds.
+
+        Args:
+            reaction_name: Name of the reaction to perturb.
+            fold_change: Factor to multiply the reaction bounds by.
+
+        Returns:
+            Dict with original_flux, perturbed_flux, fold_change, is_robust.
+        """
+        if reaction_name not in self.reactions:
+            raise ValueError(f"Reaction '{reaction_name}' not found")
+        if self.objective is None:
+            raise ValueError("No objective set")
+
+        rxn = self.reactions[reaction_name]
+        original_lower = rxn.lower_bound
+        original_upper = rxn.upper_bound
+
+        # Get original flux
+        original_flux = self.calculate_flux(self.objective)
+
+        # Perturb bounds
+        rxn.lower_bound = original_lower * fold_change
+        rxn.upper_bound = original_upper * fold_change
+        self._solution = None
+
+        # Re-solve
+        perturbed_flux = self.calculate_flux(self.objective)
+
+        # Restore bounds
+        rxn.lower_bound = original_lower
+        rxn.upper_bound = original_upper
+        self._solution = None
+
+        # Determine robustness: robust if perturbed flux is at least 50% of original
+        is_robust = perturbed_flux >= original_flux * 0.5
+
+        return {
+            "original_flux": original_flux,
+            "perturbed_flux": perturbed_flux,
+            "fold_change": fold_change,
+            "is_robust": is_robust,
+        }
+
+    def shadow_prices(self) -> dict[str, float]:
+        """Calculate shadow prices for all metabolites.
+
+        Shadow price = change in objective value per unit change in metabolite availability.
+
+        Returns:
+            Dict mapping metabolite name to shadow price.
+        """
+        if not self.reactions:
+            return {}
+        if self.objective is None:
+            raise ValueError("No objective set")
+
+        rxn_names = list(self.reactions.keys())
+        n_rxns = len(rxn_names)
+
+        # Identify internal metabolites (appear in 2+ reactions)
+        met_count = {}
+        for rxn in self.reactions.values():
+            for met in rxn.stoichiometry:
+                met_count[met] = met_count.get(met, 0) + 1
+        internal_mets = [m for m in self.metabolites if met_count[m] >= 2]
+
+        # Build stoichiometry matrix for internal metabolites
+        if internal_mets:
+            s_matrix = np.zeros((len(internal_mets), n_rxns))
+            met_idx = {m: i for i, m in enumerate(internal_mets)}
+            for j, rxn_name in enumerate(rxn_names):
+                rxn = self.reactions[rxn_name]
+                for met, coeff in rxn.stoichiometry.items():
+                    if met in met_idx:
+                        s_matrix[met_idx[met], j] = coeff
+            b_eq = np.zeros(len(internal_mets))
+        else:
+            s_matrix = None
+            b_eq = None
+
+        # Bounds
+        bounds = [(self.reactions[r].lower_bound, self.reactions[r].upper_bound) for r in rxn_names]
+
+        # Solve FBA
+        c = np.zeros(n_rxns)
+        obj_idx = rxn_names.index(self.objective)
+        c[obj_idx] = -1.0
+
+        result = linprog(c, A_eq=s_matrix, b_eq=b_eq, bounds=bounds, method='highs')
+
+        if not result.success:
+            raise ValueError(f"FBA solve failed: {result.message}")
+
+        # Shadow prices are the dual variables (marginals) of the equality constraints
+        shadow_prices = {}
+        if internal_mets and result.eqlin is not None:
+            marginals = result.eqlin.marginals
+            for i, met in enumerate(internal_mets):
+                shadow_prices[met] = float(marginals[i])
+
+        return shadow_prices
+
     def fva(self, fraction_of_optimum=0.95):
         """Flux Variability Analysis.
 

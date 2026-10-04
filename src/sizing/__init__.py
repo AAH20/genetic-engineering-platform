@@ -4,6 +4,7 @@ from src.sizing.sizing import (
     OnboardingGuide,
     SizingRecommendation,
     SizingTier,
+    compare_tiers,
     estimate_cost,
     estimate_timeline,
     recommend_tier,
@@ -15,5 +16,6 @@ __all__ = [
     "recommend_tier",
     "estimate_cost",
     "estimate_timeline",
+    "compare_tiers",
     "OnboardingGuide",
 ]

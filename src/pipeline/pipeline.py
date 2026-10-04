@@ -152,6 +152,7 @@ class PipelineResult:
         error: Error message if pipeline failed, None otherwise.
         retries_used: Dict mapping step name to number of retries used.
         errors: List of all errors collected (used by run_continue_on_error).
+        duration_ms: Execution time in milliseconds.
     """
 
     output: Any = None
@@ -160,6 +161,7 @@ class PipelineResult:
     error: Optional[str] = None
     retries_used: dict[str, int] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
+    duration_ms: float = 0.0
 
 
 class Pipeline:
@@ -176,6 +178,10 @@ class Pipeline:
         self.name = name
         self.description = description
         self.steps: list[Any] = []
+        self._total_steps: int = 0
+        self._successful_steps: int = 0
+        self._failed_steps: int = 0
+        self._duration_ms: float = 0.0
 
     def add_step(self, step: PipelineStep) -> Pipeline:
         """Add a step and return self for chaining."""
@@ -234,6 +240,7 @@ class Pipeline:
 
         Stops on first error and returns the error in PipelineResult.
         """
+        start = time.perf_counter()
         value = initial_value
         intermediate: list[Any] = []
         steps_run = 0
@@ -247,19 +254,30 @@ class Pipeline:
                 retries_used[step.name] = getattr(step, "retries_used", 0)
             except Exception as exc:
                 retries_used[step.name] = getattr(step, "retries_used", 0)
+                duration_ms = (time.perf_counter() - start) * 1000
+                self._total_steps += len(self.steps)
+                self._successful_steps += steps_run
+                self._failed_steps += 1
+                self._duration_ms += duration_ms
                 return PipelineResult(
                     output=None,
                     steps_run=steps_run,
                     intermediate=intermediate,
                     error=f"{step.name}: {exc}",
                     retries_used=retries_used,
+                    duration_ms=duration_ms,
                 )
 
+        duration_ms = (time.perf_counter() - start) * 1000
+        self._total_steps += len(self.steps)
+        self._successful_steps += steps_run
+        self._duration_ms += duration_ms
         return PipelineResult(
             output=value,
             steps_run=steps_run,
             intermediate=intermediate,
             retries_used=retries_used,
+            duration_ms=duration_ms,
         )
 
     async def run_async(
@@ -299,6 +317,26 @@ class Pipeline:
             intermediate=intermediate,
             retries_used=retries_used,
         )
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Return pipeline execution metrics.
+
+        Returns:
+            Dict with total_steps, successful_steps, failed_steps, duration_ms.
+        """
+        return {
+            "total_steps": self._total_steps,
+            "successful_steps": self._successful_steps,
+            "failed_steps": self._failed_steps,
+            "duration_ms": self._duration_ms,
+        }
+
+    def reset_metrics(self) -> None:
+        """Reset all pipeline metrics to zero."""
+        self._total_steps = 0
+        self._successful_steps = 0
+        self._failed_steps = 0
+        self._duration_ms = 0.0
 
     def run_continue_on_error(
         self, initial_value: Any, context: dict[str, Any] | None = None

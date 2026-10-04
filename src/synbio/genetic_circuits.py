@@ -723,3 +723,81 @@ def calculate_cai(dna_seq: str, host: str = "E.coli") -> float:
 
     cai = math.exp(log_sum / n)
     return max(0.0, min(1.0, cai))
+
+
+# ---------------------------------------------------------------------------
+# Terminator Efficiency Prediction & Design
+# ---------------------------------------------------------------------------
+
+# Host-specific terminator motifs
+HOST_TERMINATOR_MOTIFS = {
+    "E.coli": {"stem": "GGGCCC", "loop": "AAA", "tail": "TTTTTT"},
+    "B.subtilis": {"stem": "GCGCGC", "loop": "AAT", "tail": "TTTTTT"},
+    "S.cerevisiae": {"stem": "GCGCGC", "loop": "AAT", "tail": "TTTTTT"},
+}
+
+
+def predict_terminator_efficiency(sequence: str) -> float:
+    """Predict terminator efficiency (0-1) based on hairpin structure.
+
+    Based on: GC content of stem, loop size, U-rich tail.
+    """
+    if not sequence:
+        return 0.0
+
+    seq = sequence.upper().replace("U", "T")
+
+    # GC content score: higher GC content in stem region = stronger terminator
+    gc_count = seq.count("G") + seq.count("C")
+    gc_content = gc_count / len(seq) if seq else 0.0
+    gc_score = gc_content  # 0-1 range
+
+    # U-rich tail score: look for T-rich region at the 3' end
+    # A strong terminator has a run of T's at the end
+    tail_length = min(10, len(seq))
+    tail = seq[-tail_length:]
+    t_count = tail.count("T")
+    tail_score = t_count / tail_length if tail_length > 0 else 0.0
+
+    # Loop size score: optimal loop is 3-8 nt
+    # We approximate by checking if there's a non-GC region in the middle
+    mid_start = len(seq) // 3
+    mid_end = 2 * len(seq) // 3
+    if mid_end > mid_start:
+        mid_region = seq[mid_start:mid_end]
+        mid_gc = (mid_region.count("G") + mid_region.count("C")) / len(mid_region)
+        # Lower GC in middle = better loop
+        loop_score = 1.0 - mid_gc
+    else:
+        loop_score = 0.5
+
+    # Weighted combination
+    efficiency = (
+        0.4 * gc_score
+        + 0.4 * tail_score
+        + 0.2 * loop_score
+    )
+
+    return max(0.0, min(1.0, efficiency))
+
+
+def design_terminator(host: str = "E.coli") -> str:
+    """Design a terminator sequence for the given host.
+
+    Returns DNA sequence with hairpin + U-rich tail.
+    """
+    if host not in HOST_TERMINATOR_MOTIFS:
+        raise ValueError(f"Unsupported host: {host}")
+
+    motif = HOST_TERMINATOR_MOTIFS[host]
+
+    # Construct terminator: stem + loop + reverse complement of stem + U-rich tail
+    stem = motif["stem"]
+    loop = motif["loop"]
+    tail = motif["tail"]
+
+    # Reverse complement of stem for the hairpin
+    rc_stem = stem[::-1].translate(str.maketrans("ATGC", "TACG"))
+
+    terminator = stem + loop + rc_stem + tail
+    return terminator

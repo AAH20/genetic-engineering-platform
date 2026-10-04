@@ -71,7 +71,16 @@ class ProteinLanguageModel:
         self.max_length = max_length
         self.k = 3  # k-mer size
         self.embedding_dim = 256
+        self.version: str = "1.0.0"
         self._embedding_cache: dict[str, list[float]] = {}
+
+    def get_version(self) -> str:
+        """Return the model version string."""
+        return self.version
+
+    def set_version(self, version: str) -> None:
+        """Set the model version string."""
+        self.version = version
 
     def embed(self, sequence: str) -> np.ndarray:
         """Generate a k-mer embedding for a protein sequence.
@@ -250,6 +259,41 @@ class ProteinLanguageModel:
         if actual_length <= 0:
             return ""
         return "".join(random.choices(VALID_AMINO_ACIDS, k=actual_length))
+
+
+class ModelRegistry:
+    """Registry for managing protein language models."""
+
+    def __init__(self) -> None:
+        self._models: dict[str, ProteinLanguageModel] = {}
+
+    def register(self, name: str, model: ProteinLanguageModel) -> None:
+        """Register a model under a given name."""
+        self._models[name] = model
+
+    def get(self, name: str) -> ProteinLanguageModel:
+        """Retrieve a model by name.
+
+        Raises:
+            ValueError: If no model is registered under the given name.
+        """
+        if name not in self._models:
+            raise ValueError(f"Model '{name}' not found in registry")
+        return self._models[name]
+
+    def list_models(self) -> list[str]:
+        """Return a list of registered model names."""
+        return list(self._models.keys())
+
+    def remove(self, name: str) -> None:
+        """Remove a model from the registry.
+
+        Raises:
+            ValueError: If no model is registered under the given name.
+        """
+        if name not in self._models:
+            raise ValueError(f"Model '{name}' not found in registry")
+        del self._models[name]
 
 
 class VariantEffectPredictor:

@@ -545,6 +545,74 @@ def filter_variants_by_vaf(
     return [v for v in variants if v.quality / 100.0 >= min_vaf]
 
 
+def write_fasta(sequences: dict[str, str], filepath: str) -> None:
+    """Write sequences in FASTA format to a file.
+
+    Args:
+        sequences: Dict mapping header names to sequences.
+        filepath: Path to the output file.
+    """
+    with open(filepath, "w") as f:
+        for header, seq in sequences.items():
+            f.write(f">{header}\n{seq}\n")
+
+
+def read_fasta(filepath: str) -> dict[str, str]:
+    """Read a FASTA file and return a dict mapping headers to sequences.
+
+    Args:
+        filepath: Path to the FASTA file.
+
+    Returns:
+        Dict mapping header names to sequences.
+    """
+    sequences = {}
+    header = None
+    seq_lines = []
+
+    with open(filepath) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if header is not None:
+                    sequences[header] = "".join(seq_lines)
+                header = line[1:]
+                seq_lines = []
+            else:
+                seq_lines.append(line)
+
+    if header is not None:
+        sequences[header] = "".join(seq_lines)
+
+    return sequences
+
+
+def variants_to_fasta(variants: list[Variant], reference_name: str = "ref") -> str:
+    """Return a FASTA-formatted string with variants as sequences.
+
+    Args:
+        variants: List of Variant objects.
+        reference_name: Name prefix for each variant sequence header.
+
+    Returns:
+        FASTA-formatted string.
+    """
+    if not variants:
+        return ""
+
+    sequences = {}
+    for v in variants:
+        header = f"{reference_name}_{v.pos}_{v.ref}_{v.alt}"
+        sequences[header] = v.alt
+
+    lines = []
+    for header, seq in sequences.items():
+        lines.append(f">{header}\n{seq}\n")
+    return "".join(lines)
+
+
 def filter_variants_by_quality(
     variants: list[Variant], min_quality: float = 30.0
 ) -> list[Variant]:

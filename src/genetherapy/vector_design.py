@@ -677,3 +677,95 @@ def calculate_treatment_cost(dose: float, vector_type: str, num_doses: int = 1) 
 
     rate = COST_PER_VG.get(vector_type, 0.01)
     return dose * rate * num_doses
+
+
+# ---------------------------------------------------------------------------
+# GenBank I/O
+# ---------------------------------------------------------------------------
+def vector_to_genbank(vector: Vector) -> str:
+    """Return a GenBank-formatted string for a single vector.
+
+    Args:
+        vector: A Vector dataclass instance.
+
+    Returns:
+        Multi-line string in simplified GenBank format.
+    """
+    lines: list[str] = []
+    lines.append(f"LOCUS       {vector.name:<24}{vector.capacity:>10} bp     DNA     linear")
+    lines.append(f"DEFINITION  {vector.serotype} gene therapy vector")
+    lines.append(f"ACCESSION   {vector.name}")
+    lines.append("FEATURES             Location/Qualifiers")
+    lines.append("ORIGIN")
+
+    # Generate a deterministic placeholder sequence from the vector attributes.
+    seq_len = max(60, int(vector.capacity * 1000))
+    bases = "ACGT"
+    sequence = "".join(bases[i % 4] for i in range(seq_len))
+
+    # Wrap sequence at 60 chars per line with position number.
+    for i in range(0, len(sequence), 60):
+        chunk = sequence[i : i + 60]
+        pos = i + 1
+        lines.append(f"{pos:>9} {chunk}")
+
+    lines.append("//")
+    return "\n".join(lines)
+
+
+def write_genbank(vectors: list[Vector], filepath: str) -> None:
+    """Write vector designs in GenBank format to a file.
+
+    Args:
+        vectors: List of Vector objects to serialize.
+        filepath: Path to the output file.
+    """
+    blocks = [vector_to_genbank(v) for v in vectors]
+    content = "\n".join(blocks) + "\n"
+    with open(filepath, "w") as fh:
+        fh.write(content)
+
+
+def read_genbank(filepath: str) -> list[Vector]:
+    """Read a GenBank file and return a list of Vectors.
+
+    Args:
+        filepath: Path to the GenBank file to read.
+
+    Returns:
+        List of Vector objects parsed from the file.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    """
+    vectors: list[Vector] = []
+    with open(filepath) as fh:
+        lines = fh.readlines()
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith("LOCUS"):
+            # Parse name and capacity from LOCUS line.
+            # Format: "LOCUS       <name>    <capacity> bp     DNA     linear"
+            parts = line.split()
+            # parts[0] = "LOCUS", parts[1] = name, parts[2] = capacity, parts[3] = "bp"
+            name = parts[1]
+            capacity = float(parts[2])
+
+            # Look ahead for DEFINITION to get serotype.
+            serotype = "AAV2"  # default
+            j = i + 1
+            while j < len(lines) and j < i + 5:
+                if lines[j].startswith("DEFINITION"):
+                    # Format: "DEFINITION  <serotype> gene therapy vector"
+                    def_parts = lines[j].split()
+                    if len(def_parts) >= 2:
+                        serotype = def_parts[1]
+                    break
+                j += 1
+
+            vectors.append(Vector(name=name, capacity=capacity, serotype=serotype))
+        i += 1
+
+    return vectors

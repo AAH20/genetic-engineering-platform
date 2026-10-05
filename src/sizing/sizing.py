@@ -6,6 +6,7 @@ estimates, and onboarding guides for each tier.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -296,3 +297,48 @@ class OnboardingGuide:
                 "Compliance service",
                 "Immutable audit log",
             ]
+
+    def to_dict(self) -> dict:
+        """Return guide data as a dict."""
+        return {
+            "tier": self.tier.value,
+            "prerequisites": self.get_prerequisites(),
+            "steps": self.get_steps(),
+            "architecture": self.get_architecture(),
+        }
+
+    def to_json(self) -> str:
+        """Return guide data as a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_dict(cls, data: dict) -> OnboardingGuide:
+        """Create an OnboardingGuide from a dict."""
+        tier = SizingTier(data["tier"])
+        return cls(tier)
+
+
+def recommend_all_tiers(
+    team_size: int,
+    monthly_budget: int,
+    compute_cores: int,
+    storage_tb: float,
+) -> list[SizingRecommendation]:
+    """Return recommendations for all tiers."""
+    if team_size <= 0:
+        raise ValueError("team_size must be positive")
+    if monthly_budget < 0:
+        raise ValueError("monthly_budget must be non-negative")
+
+    tier_order = [SizingTier.LAB, SizingTier.BIOTECH_STARTUP, SizingTier.PHARMA]
+    return [
+        SizingRecommendation(
+            tier=tier,
+            recommended_cores=_TIER_PROFILES[tier].cores,
+            recommended_storage_tb=_TIER_PROFILES[tier].storage_tb,
+            required_services=list(_TIER_PROFILES[tier].services),
+            cost=estimate_cost(tier),
+            timeline=estimate_timeline(tier, team_size=team_size),
+        )
+        for tier in tier_order
+    ]

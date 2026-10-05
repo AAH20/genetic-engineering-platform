@@ -2,7 +2,40 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
 from typing import Any
+
+
+class CircuitLogger:
+    """Logger for circuit evaluation events."""
+
+    def __init__(self) -> None:
+        self._logs: list[dict[str, Any]] = []
+
+    def log_event(self, event_type: str, data: dict) -> None:
+        """Log an event with timestamp, type, and data."""
+        entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_type": event_type,
+            "data": data,
+        }
+        self._logs.append(entry)
+
+    def get_logs(self, event_type: str | None = None) -> list[dict]:
+        """Return logs, optionally filtered by event type."""
+        if event_type is None:
+            return list(self._logs)
+        return [log for log in self._logs if log["event_type"] == event_type]
+
+    def clear_logs(self) -> None:
+        """Remove all log entries."""
+        self._logs.clear()
+
+    def export_logs(self, filepath: str) -> None:
+        """Export logs to a JSON file."""
+        with open(filepath, "w") as f:
+            json.dump(self._logs, f, indent=2)
 
 # ---------------------------------------------------------------------------
 # LogicGate
@@ -63,7 +96,11 @@ class GeneticCircuit:
             raise ValueError("NOT gate requires 1 input")
         self.gates.append(LogicGate(gate_type, inputs, output))
 
-    def evaluate(self, input_values: dict[str, bool]) -> dict[str, bool]:
+    def evaluate(
+        self,
+        input_values: dict[str, bool],
+        logger: CircuitLogger | None = None,
+    ) -> dict[str, bool]:
         """Evaluate the circuit for given input values."""
         # Check all circuit inputs are provided
         for name in self.inputs:
@@ -80,7 +117,15 @@ class GeneticCircuit:
             signals[gate.output] = gate.evaluate(signals)
 
         # Return only declared outputs
-        return {out: signals[out] for out in self.outputs}
+        result = {out: signals[out] for out in self.outputs}
+
+        if logger is not None:
+            logger.log_event(
+                "circuit_evaluated",
+                {"circuit_name": self.name, "result": result},
+            )
+
+        return result
 
     def validate(self) -> bool:
         """Check that the circuit is well-formed."""

@@ -406,6 +406,45 @@ def predict_signal_peptide(seq: str) -> dict:
     return {"has_signal": False, "cleavage_site": -1}
 
 
+def predict_secondary_structure(sequence: str) -> dict:
+    """Predict secondary structure elements (helix, sheet, coil).
+
+    Uses amino acid propensities to estimate the fraction of each
+    secondary structure type in the sequence.
+
+    Args:
+        sequence: Amino acid sequence.
+
+    Returns:
+        Dict with 'helix_fraction', 'sheet_fraction', 'coil_fraction' keys.
+    """
+    if not sequence:
+        return {"helix_fraction": 0.0, "sheet_fraction": 0.0, "coil_fraction": 0.0}
+
+    seq_upper = sequence.upper()
+    invalid = set(seq_upper) - VALID_AMINO_ACIDS
+    if invalid:
+        raise ValueError(f"Invalid amino acids: {invalid}")
+
+    helix_aa = set("AELMQ")
+    sheet_aa = set("VIYFW")
+    coil_aa = set("GPSND")
+
+    helix_count = sum(1 for aa in seq_upper if aa in helix_aa)
+    sheet_count = sum(1 for aa in seq_upper if aa in sheet_aa)
+    coil_count = sum(1 for aa in seq_upper if aa in coil_aa)
+    total = helix_count + sheet_count + coil_count
+
+    if total == 0:
+        return {"helix_fraction": 0.0, "sheet_fraction": 0.0, "coil_fraction": 0.0}
+
+    return {
+        "helix_fraction": helix_count / total,
+        "sheet_fraction": sheet_count / total,
+        "coil_fraction": coil_count / total,
+    }
+
+
 def calculate_charge_at_ph(seq: str, ph: float) -> float:
     """Calculate net charge of protein at given pH.
 

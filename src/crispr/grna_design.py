@@ -404,6 +404,109 @@ def validate_cas12a_grna(seq: str) -> bool:
     return all(c in VALID_NUCS for c in seq)
 
 
+def validate_cas13_grna(seq: str) -> bool:
+    """Validate a Cas13 gRNA sequence.
+
+    Cas13 gRNAs are 24-28 nucleotides long, contain only A, C, G, U
+    (RNA-targeting, no T), and target RNA.
+
+    Args:
+        seq: The gRNA sequence to validate.
+
+    Returns:
+        True if the sequence is valid, False otherwise.
+    """
+    if not seq:
+        return False
+    if len(seq) < 24 or len(seq) > 28:
+        return False
+    return all(c in "ACGUacgu" for c in seq)
+
+
+def _rna_efficiency_score(seq: str) -> float:
+    """Calculate efficiency score for an RNA gRNA (Cas13).
+
+    Similar to DNA efficiency but works on ACGU sequences.
+    """
+    if not seq or len(seq) < 24:
+        return 0.0
+    seq_upper = seq.upper()
+    score = 0.0
+    # GC content (optimal 40-60%)
+    gc = seq_upper.count("G") + seq_upper.count("C")
+    gc_content = gc / len(seq_upper)
+    if 0.40 <= gc_content <= 0.60:
+        score += 0.4
+    elif 0.30 <= gc_content <= 0.70:
+        score += 0.2
+    else:
+        score += 0.1
+    # G at PAM-proximal position preferred
+    if seq_upper[-1] == "G":
+        score += 0.3
+    # Poly-U penalty
+    if "UUUU" in seq_upper:
+        score -= 0.2
+    return max(0.0, min(1.0, score))
+
+
+def design_grna_cas13(
+    target: str,
+    pfs: str = "A",
+    min_efficiency: float = 0.0,
+) -> Optional[dict]:
+    """Design a Cas13 gRNA for an RNA target sequence.
+
+    Cas13 uses a 3' PFS (protospacer flanking site) and a 24-28 nt guide.
+    Targets RNA (A, C, G, U only).
+
+    Args:
+        target: Target RNA sequence.
+        pfs: PFS sequence (default A).
+        min_efficiency: Minimum efficiency score threshold.
+
+    Returns:
+        Dictionary with 'sequence', 'efficiency', 'off_targets', and 'pfs'
+        keys, or None if no valid gRNA is found.
+    """
+    if not target:
+        return None
+
+    target_upper = target.upper()
+    pfs_upper = pfs.upper()
+    pfs_len = len(pfs_upper)
+    grna_len = 28
+
+    best_grna = None
+    best_score = -1.0
+
+    def _pfs_matches(potential: str, pfs_pattern: str) -> bool:
+        """Check if a PFS matches the pattern."""
+        return all(p == "N" or p == g for p, g in zip(pfs_pattern, potential))
+
+    for i in range(len(target_upper) - pfs_len - grna_len + 1):
+        # Cas13 PFS is 3' (downstream of the guide)
+        potential_grna = target_upper[i : i + grna_len]
+        potential_pfs = target_upper[i + grna_len : i + grna_len + pfs_len]
+
+        if _pfs_matches(potential_pfs, pfs_upper):
+            if validate_cas13_grna(potential_grna):
+                score = _rna_efficiency_score(potential_grna)
+                if score >= min_efficiency and score > best_score:
+                    best_score = score
+                    best_grna = potential_grna
+
+    if best_grna is None:
+        return None
+
+    return {
+        "sequence": best_grna,
+        "efficiency": round(best_score, 4),
+        "off_targets": [],
+        "pfs": pfs_upper,
+    }
+
+
 def design_grna_cas12a(
     target: str,
     pam: str = "TTTV",
@@ -926,3 +1029,80 @@ class GuideRNA:
             "off_targets": self.off_targets,
             "pam": self.pam,
         }
+
+
+# Cas9 variant registry
+CAS9_VARIANTS: dict[str, dict] = {
+    "SpCas9": {
+        "pam": "NGG",
+        "description": "Standard Streptococcus pyogenes Cas9",
+    },
+    "eSpCas9": {
+        "pam": "NGG",
+        "description": "Enhanced specificity Cas9",
+    },
+    "SpCas9-NG": {
+        "pam": "NGN",
+        "description": "Relaxed PAM Cas9",
+    },
+    "xCas9": {
+        "pam": "NAG",
+        "description": "PAM-flexible Cas9",
+    },
+    "SpCas9-NRRH": {
+        "pam": "NRRH",
+        "description": "Extended PAM Cas9",
+    },
+}
+
+
+def get_cas9_variant(name: str) -> dict:
+    """Get Cas9 variant info by name.
+
+    Args:
+        name: Variant name (e.g. 'SpCas9', 'eSpCas9').
+
+    Returns:
+        Dict with 'pam' and 'description' keys.
+
+    Raises:
+        ValueError: If the variant name is unknown.
+    """
+    if name not in CAS9_VARIANTS:
+        raise ValueError(f"Unknown Cas9 variant: {name}")
+    return CAS9_VARIANTS[name]
+
+
+def list_cas9_variants() -> list[str]:
+    """List all available Cas9 variant names.
+
+    Returns:
+        List of variant name strings.
+    """
+    return list(CAS9_VARIANTS.keys())
+
+
+def design_grna_for_variant(
+    target: str,
+    variant: str,
+    min_efficiency: float = 0.0,
+) -> Optional[dict]:
+    """Design a gRNA using a specific Cas9 variant's PAM.
+
+    Args:
+        target: Target DNA sequence.
+        variant: Cas9 variant name.
+        min_efficiency: Minimum efficiency score threshold.
+
+    Returns:
+        Design dict with 'variant' key added, or None if no valid gRNA found.
+
+    Raises:
+        ValueError: If the variant name is unknown.
+    """
+    variant_info = get_cas9_variant(variant)
+    result = design_grna(target, pam=variant_info["pam"], min_efficiency=min_efficiency)
+    if result is None:
+        return None
+    result["variant"] = variant
+    return result

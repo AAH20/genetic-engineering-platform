@@ -584,6 +584,15 @@ class BiosecurityGate:
         self.dual_use_detector = DualUseDetector()
         self.compliance_checker = ComplianceChecker()
         self._audit_log: list[dict[str, Any]] = []
+        self._callbacks: list = []
+
+    def add_callback(self, callback) -> None:
+        """Add a callback that fires when a sequence fails screening."""
+        self._callbacks.append(callback)
+
+    def clear_callbacks(self) -> None:
+        """Clear all registered callbacks."""
+        self._callbacks.clear()
 
     def evaluate(self, sequence: str, framework: str = "NIH") -> dict[str, Any]:
         """Evaluate a sequence through the biosecurity gate.
@@ -627,6 +636,18 @@ class BiosecurityGate:
                 "dual_use_result": dual_use,
                 "compliance_result": compliance,
             }
+
+        if not result["passed"]:
+            reasons = []
+            if not result["screening_result"]["is_clean"]:
+                reasons.append("threat pattern detected")
+            if result["dual_use_result"]["is_dual_use"]:
+                reasons.append("dual-use concern")
+            if not result["compliance_result"]["compliant"]:
+                reasons.append("compliance violation")
+            reason = "; ".join(reasons) if reasons else "unknown"
+            for cb in self._callbacks:
+                cb(sequence, reason)
 
         self._audit_log.append({
             "timestamp": datetime.now().isoformat(),

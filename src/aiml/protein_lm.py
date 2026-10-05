@@ -73,6 +73,8 @@ class ProteinLanguageModel:
         self.embedding_dim = 256
         self.version: str = "1.0.0"
         self._embedding_cache: dict[str, list[float]] = {}
+        self._cache_hits: int = 0
+        self._cache_misses: int = 0
 
     def get_version(self) -> str:
         """Return the model version string."""
@@ -230,7 +232,39 @@ class ProteinLanguageModel:
         """
         if sequence not in self._embedding_cache:
             self._embedding_cache[sequence] = self.embed(sequence).tolist()
+            self._cache_misses += 1
+        else:
+            self._cache_hits += 1
         return self._embedding_cache[sequence]
+
+    def clear_cache(self) -> None:
+        """Clear the embedding cache and reset hit/miss counters."""
+        self._embedding_cache.clear()
+        self._cache_hits = 0
+        self._cache_misses = 0
+
+    def get_cache_stats(self) -> dict:
+        """Return cache statistics.
+
+        Returns:
+            Dict with 'size', 'hits', and 'misses' keys.
+        """
+        return {
+            "size": len(self._embedding_cache),
+            "hits": self._cache_hits,
+            "misses": self._cache_misses,
+        }
+
+    def embed_batch_cached(self, sequences: list[str]) -> list[list[float]]:
+        """Generate embeddings for a batch with caching.
+
+        Args:
+            sequences: List of amino acid sequences.
+
+        Returns:
+            List of embedding lists, one per input sequence.
+        """
+        return [self.embed_cached(seq) for seq in sequences]
 
     def predict_variant_effect_batch(self, variants: list[dict]) -> list[float]:
         """Predict variant effects for a batch of variants.

@@ -188,6 +188,38 @@ class Pipeline:
         self.steps.append(step)
         return self
 
+    def insert_step(self, step: PipelineStep, index: int) -> Pipeline:
+        """Insert a step at the given index and return self for chaining."""
+        if index < 0 or index > len(self.steps):
+            raise IndexError(
+                f"Index {index} out of range for pipeline with {len(self.steps)} steps"
+            )
+        self.steps.insert(index, step)
+        return self
+
+    def remove_step(self, step_name: str) -> Pipeline:
+        """Remove a step by name and return self for chaining."""
+        for i, s in enumerate(self.steps):
+            if s.name == step_name:
+                self.steps.pop(i)
+                return self
+        raise ValueError(f"Step '{step_name}' not found in pipeline")
+
+    def replace_step(self, step_name: str, new_step: PipelineStep) -> Pipeline:
+        """Replace a step by name and return self for chaining."""
+        for i, s in enumerate(self.steps):
+            if s.name == step_name:
+                self.steps[i] = new_step
+                return self
+        raise ValueError(f"Step '{step_name}' not found in pipeline")
+
+    def get_step(self, step_name: str) -> PipelineStep:
+        """Return the step with the given name."""
+        for s in self.steps:
+            if s.name == step_name:
+                return s
+        raise ValueError(f"Step '{step_name}' not found in pipeline")
+
     def add_conditional_step(
         self,
         predicate: Callable[..., bool],
